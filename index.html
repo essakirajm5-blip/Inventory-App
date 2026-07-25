@@ -18,6 +18,11 @@
     .divider { text-align: center; font-weight: bold; margin: 15px 0; color: #777; }
     .page { display: none; }
     .active-page { display: block; }
+    
+    #syncStatus { text-align: center; font-weight: bold; padding: 8px; border-radius: 6px; margin-bottom: 10px; font-size: 13px; }
+    .status-loading { background: #fff3cd; color: #856404; }
+    .status-success { background: #d4edda; color: #155724; }
+    .status-error { background: #f8d7da; color: #721c24; }
   </style>
 </head>
 <body>
@@ -40,7 +45,7 @@
         <option value="1001 - Display">1001 - Display</option>
         <option value="1003 - BOH">1003 - BOH</option>
         <option value="2994 - RTV">2994 - RTV</option>
-        <option value="2998 - Scrab">2998 - Scrab</option>
+        <option value="2995 - Insurance Claim">2995 - Insurance Claim</option>
       </select>
 
       <label>LHP / Bay Area:</label>
@@ -60,18 +65,21 @@
       
       <h3>📷 Inventory Audit (Page 2/2)</h3>
       
+      <!-- DATA SYNC STATUS INDICATOR -->
+      <div id="syncStatus" class="status-loading">⏳ Connecting to Master Data...</div>
+
       <!-- Option 1: Scanner -->
       <button onclick="startScanner()">📷 Turn On Camera Scanner</button>
       <div id="reader" style="width:100%; margin-top:10px;"></div>
 
-      <div class="divider">─── OR (MANUAL INPUT) ───</div>
+      <div class="divider">─── OR (TYPE & SELECT) ───</div>
 
-      <!-- Option 2: Manual Typing -->
-      <label>Enter Article ID or EAN manually:</label>
-      <div style="display:flex; gap:8px;">
-        <input type="text" id="manualInput" placeholder="Type EAN / Article ID" style="margin-top:0;">
-        <button onclick="searchManualCode()" style="width:120px; background-color:#f39c12; margin-top:0;">Search 🔍</button>
-      </div>
+      <!-- Option 2: Live Datalist Auto-Complete -->
+      <label>Search Article ID / EAN / Name:</label>
+      <input type="text" id="manualInput" list="articleList" placeholder="Start typing Article ID or EAN..." oninput="onLiveInput(this.value)">
+      <datalist id="articleList">
+        <!-- Live suggestions load here -->
+      </datalist>
 
       <!-- Result Card -->
       <div id="resultCard" class="info-box" style="display:none;">
@@ -107,16 +115,42 @@
     let currentItem = {};
 
     window.onload = function() {
+      loadMasterData();
+    };
+
+    function loadMasterData() {
+      let statusDiv = document.getElementById('syncStatus');
+      statusDiv.className = "status-loading";
+      statusDiv.innerText = "⏳ Connecting to Google Sheets Master Data...";
+
       fetch(SCRIPT_URL)
         .then(res => res.json())
         .then(data => {
-          eanMap = data.eanMap;
-          stockMap = data.stockMap;
-          previousScans = data.previousScans;
-          console.log("Data Sync Complete");
+          eanMap = data.eanMap || {};
+          stockMap = data.stockMap || {};
+          previousScans = data.previousScans || {};
+
+          let datalist = document.getElementById('articleList');
+          datalist.innerHTML = "";
+          
+          let itemCount = 0;
+          for (let key in eanMap) {
+            let item = eanMap[key];
+            let option = document.createElement('option');
+            option.value = item.article + " - " + item.description + " (" + key + ")";
+            datalist.appendChild(option);
+            itemCount++;
+          }
+
+          statusDiv.className = "status-success";
+          statusDiv.innerText = "✅ System Ready! (" + itemCount + " Articles Loaded)";
         })
-        .catch(err => alert("Data Fetch Error! Please check your Web App URL."));
-    };
+        .catch(err => {
+          console.error(err);
+          statusDiv.className = "status-error";
+          statusDiv.innerText = "❌ Master Data Sync Failed! Check Web App Deployment/Permissions.";
+        });
+    }
 
     function goToScanPage() {
       let storeCode = document.getElementById('storeCode').value.trim();
@@ -149,41 +183,42 @@
       processCodeLookup(scannedEAN);
     }
 
-    function searchManualCode() {
-      let typedCode = document.getElementById('manualInput').value.trim();
-      if (!typedCode) {
-        alert("Please enter a code to search!");
-        return;
+    function onLiveInput(inputValue) {
+      if(!inputValue) return;
+
+      let searchCode = inputValue;
+      if(inputValue.includes("(")) {
+        let parts = inputValue.split("(");
+        searchCode = parts[parts.length - 1].replace(")", "").trim();
+      } else if(inputValue.includes("-")) {
+        searchCode = inputValue.split("-")[0].trim();
       }
-      processCodeLookup(typedCode);
+
+      processCodeLookup(searchCode);
     }
 
     function processCodeLookup(searchCode) {
       let storeCode = document.getElementById('storeCode').value.trim();
       let sloc = document.getElementById('slocSelect').value;
 
-      document.getElementById('resEAN').innerText = searchCode;
-
-      // Search by EAN first, or search by Article ID inside eanMap
       let foundKey = Object.keys(eanMap).find(key => key === searchCode || eanMap[key].article === searchCode);
 
       if (foundKey) {
         let item = eanMap[foundKey];
+        document.getElementById('resEAN').innerText = foundKey;
         document.getElementById('resArticle').innerText = item.article;
         document.getElementById('resDesc').innerText = item.description;
         document.getElementById('resMeta').innerText = (item.brand || "N/A") + " (" + (item.brick || "N/A") + ")";
 
-        // Fetch Previously Scanned Stock Total
         let prevKey = storeCode + "_" + item.article;
         let prevQty = previousScans[prevKey] || 0;
         document.getElementById('resPrevTotal').innerText = prevQty;
 
-        // System Stock Match (StoreCode + Article + Sloc)
         let sysStockKey = storeCode + "_" + item.article + "_" + sloc;
         let sysStock = stockMap[sysStockKey] || 0;
 
         currentItem = {
-          scannedEAN: searchCode,
+          scannedEAN: foundKey,
           article: item.article,
           description: item.description,
           segment: item.segment,
@@ -197,9 +232,6 @@
 
         document.getElementById('resultCard').style.display = 'block';
         if(html5QrcodeScanner) { html5QrcodeScanner.clear(); }
-
-      } else {
-        alert("Code: " + searchCode + " not found in Article_Master!");
       }
     }
 
