@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Store Inventory Audit System</title>
+  <script src="https://unpkg.com/html5-qrcode"></script>
+  <style>
+    body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 12px; background-color: #f0f2f5; }
+    .card { background: white; padding: 18px; border-radius: 10px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); margin-bottom: 12px; }
+    h3 { margin-top: 0; color: #1a73e8; text-align: center; }
+    label { font-weight: bold; margin-top: 10px; display: block; font-size: 14px; color: #333; }
+    select, input, button { width: 100%; padding: 12px; margin-top: 5px; border-radius: 6px; border: 1px solid #ccc; box-sizing: border-box; font-size: 15px; }
+    button { background-color: #1a73e8; color: white; border: none; font-weight: bold; cursor: pointer; transition: 0.2s; }
+    button:hover { background-color: #1557b0; }
+    .info-box { background: #e8f0fe; padding: 12px; border-radius: 8px; margin-top: 12px; font-size: 14px; border-left: 4px solid #1a73e8; }
+    .prev-stock-box { background: #fff3cd; color: #856404; padding: 10px; border-radius: 6px; margin-top: 10px; font-weight: bold; border: 1px solid #ffeeba; }
+    .page { display: none; }
+    .active-page { display: block; }
+  </style>
+</head>
+<body>
+
+  <!-- PAGE 1: USER & LOCATION SETUP -->
+  <div id="page1" class="page active-page">
+    <div class="card">
+      <h3>🚀 Audit Setup (Page 1/2)</h3>
+      
+      <label>Store Code:</label>
+      <input type="text" id="storeCode" placeholder="Eg: STR101">
+
+      <label>Employee Name:</label>
+      <input type="text" id="empName" placeholder="Enter your full name">
+
+      <label>SLoc (Storage Location):</label>
+      <select id="slocSelect">
+        <option value="">-- Select SLoc --</option>
+        <option value="SL01 - Main Sales Floor">SL01 - Main Sales Floor</option>
+        <option value="SL02 - Backroom Warehouse">SL02 - Backroom Warehouse</option>
+        <option value="SL03 - Display Rack">SL03 - Display Rack</option>
+        <option value="SL04 - Damage Area">SL04 - Damage Area</option>
+        <option value="SL05 - Return Section">SL05 - Return Section</option>
+        <option value="SL06 - Receiving Bay">SL06 - Receiving Bay</option>
+        <option value="SL07 - Transit Area">SL07 - Transit Area</option>
+        <option value="SL08 - Promo Zone">SL08 - Promo Zone</option>
+        <option value="SL09 - Bulk Storage">SL09 - Bulk Storage</option>
+        <option value="SL10 - Clearance Shelf">SL10 - Clearance Shelf</option>
+      </select>
+
+      <label>LHP / Bay Area:</label>
+      <input type="text" id="lhpBay" placeholder="Eg: Bay-A12 or Rack-05">
+
+      <button onclick="goToScanPage()" style="margin-top:20px;">Start Audit ➡️</button>
+    </div>
+  </div>
+
+  <!-- PAGE 2: SCANNER & AUDIT -->
+  <div id="page2" class="page">
+    <div class="card">
+      <div style="display:flex; justify-content:space-between; align-items:center;">
+        <span id="headerInfo" style="font-size:12px; color:#555; font-weight:bold;"></span>
+        <button onclick="goToSetupPage()" style="width:auto; padding:5px 10px; font-size:12px; background:#6c757d;">⚙️ Change Setup</button>
+      </div>
+      
+      <h3>📷 Barcode Audit (Page 2/2)</h3>
+      <button onclick="startScanner()">📷 Turn On Camera Scanner</button>
+      <div id="reader" style="width:100%; margin-top:10px;"></div>
+
+      <div id="resultCard" class="info-box" style="display:none;">
+        <p><strong>Article ID:</strong> <span id="resArticle">-</span></p>
+        <p><strong>Description:</strong> <span id="resDesc">-</span></p>
+        <p><strong>Scanned EAN:</strong> <span id="resEAN">-</span></p>
+        <p><strong>Brand / Category:</strong> <span id="resMeta">-</span></p>
+
+        <!-- Previous Scan Stock Reference -->
+        <div class="prev-stock-box">
+          📊 Total Quantity Scanned So Far (All Bays): 
+          <span id="resPrevTotal">0</span>
+        </div>
+
+        <label style="margin-top:15px;">Physical Scanned Quantity (For current location):</label>
+        <input type="number" id="physicalQty" value="1" min="1">
+
+        <button onclick="saveData()" style="background-color: #27ae60; margin-top:15px;">💾 Save Audit Entry</button>
+      </div>
+
+      <p id="msg" style="text-align:center; font-weight:bold; color:green; margin-top:10px;"></p>
+    </div>
+  </div>
+
+  <script>
+    // ⚠️ PASTE YOUR DEPLOYED WEB APP URL INSIDE QUOTES BELOW
+    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycby51wXsL_DOrbXTpMD0GWrRW-XpAbETSud8llZSUOZ94AsXk-6hmlqAvv4inzYdLI-B/exec";
+    
+    let eanMap = {};
+    let stockMap = {};
+    let previousScans = {};
+    let html5QrcodeScanner = null;
+    let currentItem = {};
+
+    window.onload = function() {
+      fetch(SCRIPT_URL)
+        .then(res => res.json())
+        .then(data => {
+          eanMap = data.eanMap;
+          stockMap = data.stockMap;
+          previousScans = data.previousScans;
+          console.log("Data Sync Complete");
+        })
+        .catch(err => alert("Data Fetch Error! Please check your Web App URL."));
+    };
+
+    function goToScanPage() {
+      let storeCode = document.getElementById('storeCode').value.trim();
+      let empName = document.getElementById('empName').value.trim();
+      let sloc = document.getElementById('slocSelect').value;
+      let lhpBay = document.getElementById('lhpBay').value.trim();
+
+      if (!storeCode || !empName || !sloc || !lhpBay) {
+        alert("Please fill in all details before proceeding!");
+        return;
+      }
+
+      document.getElementById('headerInfo').innerText = storeCode + " | " + empName + " | " + lhpBay;
+      document.getElementById('page1').classList.remove('active-page');
+      document.getElementById('page2').classList.add('active-page');
+    }
+
+    function goToSetupPage() {
+      document.getElementById('page2').classList.remove('active-page');
+      document.getElementById('page1').classList.add('active-page');
+      if(html5QrcodeScanner) { html5QrcodeScanner.clear(); }
+    }
+
+    function startScanner() {
+      html5QrcodeScanner = new Html5QrcodeScanner("reader", { fps: 10, qrbox: 250 });
+      html5QrcodeScanner.render(onScanSuccess);
+    }
+
+    function onScanSuccess(scannedEAN) {
+      let storeCode = document.getElementById('storeCode').value.trim();
+      let sloc = document.getElementById('slocSelect').value;
+
+      document.getElementById('resEAN').innerText = scannedEAN;
+
+      if (eanMap[scannedEAN]) {
+        let item = eanMap[scannedEAN];
+        document.getElementById('resArticle').innerText = item.article;
+        document.getElementById('resDesc').innerText = item.description;
+        document.getElementById('resMeta').innerText = (item.brand || "N/A") + " (" + (item.brick || "N/A") + ")";
+
+        // Fetch Previously Scanned Stock Total
+        let prevKey = storeCode + "_" + item.article;
+        let prevQty = previousScans[prevKey] || 0;
+        document.getElementById('resPrevTotal').innerText = prevQty;
+
+        // System Stock Match (StoreCode + Article + Sloc)
+        let sysStockKey = storeCode + "_" + item.article + "_" + sloc;
+        let sysStock = stockMap[sysStockKey] || 0;
+
+        currentItem = {
+          scannedEAN: scannedEAN,
+          article: item.article,
+          description: item.description,
+          segment: item.segment,
+          family: item.family,
+          classVal: item.classVal,
+          mcCode: item.mcCode,
+          brick: item.brick,
+          brand: item.brand,
+          systemStock: sysStock
+        };
+
+        document.getElementById('resultCard').style.display = 'block';
+        if(html5QrcodeScanner) { html5QrcodeScanner.clear(); }
+
+      } else {
+        alert("EAN: " + scannedEAN + " not found in Article_Master!");
+      }
+    }
+
+    function saveData() {
+      let currentInputQty = Number(document.getElementById('physicalQty').value) || 0;
+      let storeCode = document.getElementById('storeCode').value.trim();
+
+      let payload = {
+        storeCode: storeCode,
+        empName: document.getElementById('empName').value.trim(),
+        sloc: document.getElementById('slocSelect').value,
+        lhpBay: document.getElementById('lhpBay').value.trim(),
+        scannedEAN: currentItem.scannedEAN,
+        article: currentItem.article,
+        description: currentItem.description,
+        segment: currentItem.segment,
+        family: currentItem.family,
+        classVal: currentItem.classVal,
+        mcCode: currentItem.mcCode,
+        brick: currentItem.brick,
+        brand: currentItem.brand,
+        systemStock: currentItem.systemStock,
+        physicalQty: currentInputQty
+      };
+
+      document.getElementById('msg').innerText = "Saving entry...";
+
+      fetch(SCRIPT_URL, {
+        method: "POST",
+        body: JSON.stringify(payload)
+      })
+      .then(res => res.json())
+      .then(data => {
+        document.getElementById('msg').innerText = "✅ Audit Entry Successfully Saved!";
+        
+        // Real-time Update for Total Scanned Reference Box
+        let prevKey = storeCode + "_" + currentItem.article;
+        previousScans[prevKey] = (previousScans[prevKey] || 0) + currentInputQty;
+
+        document.getElementById('resultCard').style.display = 'none';
+        document.getElementById('physicalQty').value = "1";
+        
+        setTimeout(() => { document.getElementById('msg').innerText = ""; }, 3000);
+      });
+    }
+  </script>
+</body>
+</html>
