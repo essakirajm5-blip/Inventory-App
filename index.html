@@ -33,7 +33,7 @@
       <h3>🚀 Audit Setup (Page 1/2)</h3>
       
       <label>Store Code:</label>
-      <input type="text" id="storeCode" placeholder="Eg: STR101">
+      <input type="text" id="storeCode" placeholder="E.g., STR101">
 
       <label>Employee Name:</label>
       <input type="text" id="empName" placeholder="Enter your full name">
@@ -49,7 +49,7 @@
       </select>
 
       <label>LHP / Bay Area:</label>
-      <input type="text" id="lhpBay" placeholder="Eg: Bay-A12 or Rack-05">
+      <input type="text" id="lhpBay" placeholder="E.g., Bay-A12 or Rack-05">
 
       <button onclick="goToScanPage()" style="margin-top:20px;">Start Audit ➡️</button>
     </div>
@@ -105,6 +105,7 @@
   </div>
 
   <script>
+    // ⚠️ PASTE YOUR DEPLOYED WEB APP URL INSIDE QUOTES BELOW
     const SCRIPT_URL = "https://script.google.com/macros/s/AKfycby51wXsL_DOrbXTpMD0GWrRW-XpAbETSud8llZSUOZ94AsXk-6hmlqAvv4inzYdLI-B/exec";
     
     let eanMap = {};
@@ -170,21 +171,37 @@
     function goToSetupPage() {
       document.getElementById('page2').classList.remove('active-page');
       document.getElementById('page1').classList.add('active-page');
-      if(html5QrcodeScanner) { html5QrcodeScanner.clear(); }
+      if(html5QrcodeScanner) {
+        html5QrcodeScanner.stop().catch(err => console.log(err));
+      }
     }
 
     function startScanner() {
-      html5QrcodeScanner = new Html5QrcodeScanner("reader", { fps: 10, qrbox: 250 });
-      html5QrcodeScanner.render(onScanSuccess);
-    }
+      if (html5QrcodeScanner) {
+        html5QrcodeScanner.stop().catch(err => console.log(err));
+      }
 
-    function onScanSuccess(scannedEAN) {
-      processCodeLookup(scannedEAN);
+      html5QrcodeScanner = new Html5Qrcode("reader");
+      const config = { fps: 10, qrbox: { width: 250, height: 250 } };
+
+      html5QrcodeScanner.start(
+        { facingMode: "environment" }, 
+        config, 
+        (decodedText) => {
+          processCodeLookup(decodedText);
+          html5QrcodeScanner.stop().catch(err => console.log(err));
+        },
+        (errorMessage) => {
+          // Ignore scanning frame errors
+        }
+      ).catch(err => {
+        console.error("Camera error:", err);
+        alert("Camera access denied or error starting camera.");
+      });
     }
 
     function onLiveInput(inputValue) {
       if(!inputValue) return;
-
       let searchCode = inputValue;
       if(inputValue.includes("(")) {
         let parts = inputValue.split("(");
@@ -192,7 +209,6 @@
       } else if(inputValue.includes("-")) {
         searchCode = inputValue.split("-")[0].trim();
       }
-
       processCodeLookup(searchCode);
     }
 
@@ -230,7 +246,8 @@
         };
 
         document.getElementById('resultCard').style.display = 'block';
-        if(html5QrcodeScanner) { html5QrcodeScanner.clear(); }
+      } else {
+        alert("Article/Barcode not found in Master Data: " + searchCode);
       }
     }
 
