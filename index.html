@@ -15,6 +15,7 @@
     button:hover { background-color: #1557b0; }
     .info-box { background: #e8f0fe; padding: 12px; border-radius: 8px; margin-top: 12px; font-size: 14px; border-left: 4px solid #1a73e8; }
     .prev-stock-box { background: #fff3cd; color: #856404; padding: 10px; border-radius: 6px; margin-top: 10px; font-weight: bold; border: 1px solid #ffeeba; }
+    .divider { text-align: center; font-weight: bold; margin: 15px 0; color: #777; }
     .page { display: none; }
     .active-page { display: block; }
   </style>
@@ -35,16 +36,11 @@
       <label>SLoc (Storage Location):</label>
       <select id="slocSelect">
         <option value="">-- Select SLoc --</option>
-        <option value="SL01 - Main Sales Floor">SL01 - Main Sales Floor</option>
-        <option value="SL02 - Backroom Warehouse">SL02 - Backroom Warehouse</option>
-        <option value="SL03 - Display Rack">SL03 - Display Rack</option>
-        <option value="SL04 - Damage Area">SL04 - Damage Area</option>
-        <option value="SL05 - Return Section">SL05 - Return Section</option>
-        <option value="SL06 - Receiving Bay">SL06 - Receiving Bay</option>
-        <option value="SL07 - Transit Area">SL07 - Transit Area</option>
-        <option value="SL08 - Promo Zone">SL08 - Promo Zone</option>
-        <option value="SL09 - Bulk Storage">SL09 - Bulk Storage</option>
-        <option value="SL10 - Clearance Shelf">SL10 - Clearance Shelf</option>
+        <option value="1000 - Salable">1000 - Salable</option>
+        <option value="1001 - Display">1001 - Display</option>
+        <option value="1003 - BOH">1003 - BOH</option>
+        <option value="2994 - RTV">2994 - RTV</option>
+        <option value="2998 - Scrab">2998 - Scrab</option>
       </select>
 
       <label>LHP / Bay Area:</label>
@@ -62,14 +58,26 @@
         <button onclick="goToSetupPage()" style="width:auto; padding:5px 10px; font-size:12px; background:#6c757d;">⚙️ Change Setup</button>
       </div>
       
-      <h3>📷 Barcode Audit (Page 2/2)</h3>
+      <h3>📷 Inventory Audit (Page 2/2)</h3>
+      
+      <!-- Option 1: Scanner -->
       <button onclick="startScanner()">📷 Turn On Camera Scanner</button>
       <div id="reader" style="width:100%; margin-top:10px;"></div>
 
+      <div class="divider">─── OR (MANUAL INPUT) ───</div>
+
+      <!-- Option 2: Manual Typing -->
+      <label>Enter Article ID or EAN manually:</label>
+      <div style="display:flex; gap:8px;">
+        <input type="text" id="manualInput" placeholder="Type EAN / Article ID" style="margin-top:0;">
+        <button onclick="searchManualCode()" style="width:120px; background-color:#f39c12; margin-top:0;">Search 🔍</button>
+      </div>
+
+      <!-- Result Card -->
       <div id="resultCard" class="info-box" style="display:none;">
         <p><strong>Article ID:</strong> <span id="resArticle">-</span></p>
         <p><strong>Description:</strong> <span id="resDesc">-</span></p>
-        <p><strong>Scanned EAN:</strong> <span id="resEAN">-</span></p>
+        <p><strong>EAN / Code:</strong> <span id="resEAN">-</span></p>
         <p><strong>Brand / Category:</strong> <span id="resMeta">-</span></p>
 
         <!-- Previous Scan Stock Reference -->
@@ -138,13 +146,29 @@
     }
 
     function onScanSuccess(scannedEAN) {
+      processCodeLookup(scannedEAN);
+    }
+
+    function searchManualCode() {
+      let typedCode = document.getElementById('manualInput').value.trim();
+      if (!typedCode) {
+        alert("Please enter a code to search!");
+        return;
+      }
+      processCodeLookup(typedCode);
+    }
+
+    function processCodeLookup(searchCode) {
       let storeCode = document.getElementById('storeCode').value.trim();
       let sloc = document.getElementById('slocSelect').value;
 
-      document.getElementById('resEAN').innerText = scannedEAN;
+      document.getElementById('resEAN').innerText = searchCode;
 
-      if (eanMap[scannedEAN]) {
-        let item = eanMap[scannedEAN];
+      // Search by EAN first, or search by Article ID inside eanMap
+      let foundKey = Object.keys(eanMap).find(key => key === searchCode || eanMap[key].article === searchCode);
+
+      if (foundKey) {
+        let item = eanMap[foundKey];
         document.getElementById('resArticle').innerText = item.article;
         document.getElementById('resDesc').innerText = item.description;
         document.getElementById('resMeta').innerText = (item.brand || "N/A") + " (" + (item.brick || "N/A") + ")";
@@ -159,7 +183,7 @@
         let sysStock = stockMap[sysStockKey] || 0;
 
         currentItem = {
-          scannedEAN: scannedEAN,
+          scannedEAN: searchCode,
           article: item.article,
           description: item.description,
           segment: item.segment,
@@ -175,7 +199,7 @@
         if(html5QrcodeScanner) { html5QrcodeScanner.clear(); }
 
       } else {
-        alert("EAN: " + scannedEAN + " not found in Article_Master!");
+        alert("Code: " + searchCode + " not found in Article_Master!");
       }
     }
 
@@ -211,11 +235,11 @@
       .then(data => {
         document.getElementById('msg').innerText = "✅ Audit Entry Successfully Saved!";
         
-        // Real-time Update for Total Scanned Reference Box
         let prevKey = storeCode + "_" + currentItem.article;
         previousScans[prevKey] = (previousScans[prevKey] || 0) + currentInputQty;
 
         document.getElementById('resultCard').style.display = 'none';
+        document.getElementById('manualInput').value = "";
         document.getElementById('physicalQty').value = "1";
         
         setTimeout(() => { document.getElementById('msg').innerText = ""; }, 3000);
