@@ -62,7 +62,7 @@
       100% { transform: translateY(-45px); }
     }
 
-    /* Scanned Article Details Box */
+    /* Scanned Item Result Card */
     .info-box { background: #ffffff; padding: 14px; border-radius: 10px; margin-top: 15px; font-size: 13px; border: 1px solid #dcdfe4; box-shadow: 0 2px 6px rgba(0,0,0,0.05); }
     .info-box p { margin: 6px 0; color: #555; }
     .info-box strong { color: #111; }
@@ -122,9 +122,9 @@
       
       <div id="syncStatus" class="status-loading">⏳ Connecting to Master Data...</div>
 
-      <label>Scan Barcode or Search Article:</label>
+      <label>Scan Barcode or Search Article / Brand:</label>
       <div class="search-container">
-        <input type="text" id="manualInput" list="articleList" placeholder="Type name / ID or click 📷" oninput="onLiveInput(this.value)">
+        <input type="text" id="manualInput" list="articleList" placeholder="Type Brand/Model (e.g. Samsung A52) or click 📷" oninput="onLiveInput(this.value)">
         <button type="button" class="scan-icon-btn" onclick="toggleScanner()" title="Scan Barcode">📷</button>
       </div>
       <datalist id="articleList"></datalist>
@@ -285,7 +285,11 @@
             for (let key in eanMap) {
               let item = eanMap[key];
               let option = document.createElement('option');
-              option.value = item.article + " - " + item.description + " (" + key + ")";
+              // Format: Brand + Description + Article + Barcode (以便 match ஆக)
+              let brandName = item.brand || "";
+              let desc = item.description || "";
+              let artId = item.article || "";
+              option.value = brandName + " " + desc + " - Art: " + artId + " (" + key + ")";
               datalist.appendChild(option);
             }
           }
@@ -434,6 +438,8 @@
 
     function onLiveInput(inputValue) {
       if (!inputValue) return;
+      
+      // ஒருவேளை பயனர் டிராப் டவுனில் இருந்து முழு ஆப்ஷனையும் தேர்ந்தெடுத்திருந்தால் அல்லது பிராக்கெட்டுக்குள் கோட் இருந்தால்
       if (inputValue.includes("(") && inputValue.includes(")")) {
         let parts = inputValue.split("(");
         let searchCode = parts[parts.length - 1].replace(")", "").trim();
