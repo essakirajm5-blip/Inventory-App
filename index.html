@@ -32,20 +32,11 @@
       border-radius: 6px; cursor: pointer; font-size: 16px; width: auto; margin: 0;
     }
 
-    /* Full Screen Overlay Modal for Camera Scanner */
-    #scannerModal {
-      display: none; position: fixed; z-index: 9999; left: 0; top: 0; 
-      width: 100%; height: 100%; background-color: rgba(0,0,0,0.95);
-      flex-direction: column; justify-content: center; align-items: center;
-    }
-    #scannerModal .scanner-header {
-      position: absolute; top: 20px; left: 0; width: 100%; display: flex; 
-      justify-content: space-around; z-index: 10000;
-    }
-    #scannerModal .scanner-header button {
-      width: auto; padding: 10px 20px; font-size: 14px; border-radius: 20px;
-    }
-    #modalReader { width: 100%; max-width: 500px; }
+    /* Camera Box Area */
+    #scannerWrapper { display: none; margin-top: 15px; text-align: center; background: #000; padding: 10px; border-radius: 8px; }
+    #reader { width: 100%; }
+    .cam-controls { display: flex; justify-content: space-between; margin-bottom: 8px; }
+    .cam-controls button { width: 48%; padding: 8px; font-size: 13px; }
   </style>
 </head>
 <body>
@@ -95,11 +86,20 @@
       <label>Search Article ID / EAN / Name:</label>
       <div class="search-container">
         <input type="text" id="manualInput" list="articleList" placeholder="Type or click 📷 to scan..." oninput="onLiveInput(this.value)">
-        <button class="scan-icon-btn" onclick="openScannerModal()" title="Scan Barcode">📷</button>
+        <button class="scan-icon-btn" onclick="toggleScanner()" title="Scan Barcode">📷</button>
       </div>
       <datalist id="articleList">
         <!-- Live suggestions load here -->
       </datalist>
+
+      <!-- Inline Camera Scanner Area -->
+      <div id="scannerWrapper">
+        <div class="cam-controls">
+          <button id="torchBtn" onclick="toggleTorch()" style="background: #f39c12; display: none;">🔦 Flash On</button>
+          <button onclick="stopScanner()" style="background: #e74c3c;">❌ Close Camera</button>
+        </div>
+        <div id="reader"></div>
+      </div>
 
       <!-- Result Card -->
       <div id="resultCard" class="info-box" style="display:none;">
@@ -124,15 +124,6 @@
     </div>
   </div>
 
-  <!-- FULL SCREEN CAMERA SCANNER OVERLAY -->
-  <div id="scannerModal">
-    <div class="scanner-header">
-      <button id="torchBtn" onclick="toggleTorch()" style="background: #f39c12; display: none;">🔦 Flash On</button>
-      <button onclick="closeScannerModal()" style="background: #e74c3c;">❌ Close</button>
-    </div>
-    <div id="modalReader"></div>
-  </div>
-
   <script>
     const SCRIPT_URL = "https://script.google.com/macros/s/AKfycby51wXsL_DOrbXTpMD0GWrRW-XpAbETSud8llZSUOZ94AsXk-6hmlqAvv4inzYdLI-B/exec";
     
@@ -142,6 +133,7 @@
     let html5QrcodeScanner = null;
     let currentItem = {};
     let isTorchOn = false;
+    let isCameraActive = false;
 
     window.onload = function() {
       loadMasterData();
@@ -200,34 +192,36 @@
     function goToSetupPage() {
       document.getElementById('page2').classList.remove('active-page');
       document.getElementById('page1').classList.add('active-page');
-      closeScannerModal();
+      stopScanner();
     }
 
-    function openScannerModal() {
-      document.getElementById('scannerModal').style.display = 'flex';
-      
-      html5QrcodeScanner = new Html5Qrcode("modalReader");
-      
+    function toggleScanner() {
+      if (isCameraActive) {
+        stopScanner();
+      } else {
+        startScanner();
+      }
+    }
+
+    function startScanner() {
+      document.getElementById('scannerWrapper').style.display = 'block';
+      isCameraActive = true;
+
+      if (!html5QrcodeScanner) {
+        html5QrcodeScanner = new Html5Qrcode("reader");
+      }
+
       const config = { 
-        fps: 30, 
+        fps: 20, 
         qrbox: { width: 280, height: 120 },
-        experimentalFeatures: { useBarCodeDetectorIfSupported: true },
-        formatsToSupport: [ 
-          Html5QrcodeSupportedFormats.EAN_13,
-          Html5QrcodeSupportedFormats.EAN_8,
-          Html5QrcodeSupportedFormats.CODE_128,
-          Html5QrcodeSupportedFormats.UPC_A,
-          Html5QrcodeSupportedFormats.UPC_E
-        ]
+        experimentalFeatures: { useBarCodeDetectorIfSupported: true }
       };
 
-      const cameraConfig = { facingMode: "environment", focusMode: "continuous" };
-
       html5QrcodeScanner.start(
-        cameraConfig,
+        { facingMode: "environment" },
         config,
         (decodedText) => {
-          closeScannerModal();
+          stopScanner();
           processCodeLookup(decodedText);
         },
         (errorMessage) => {}
@@ -240,22 +234,28 @@
         } catch(e) {}
       }).catch(err => {
         console.error("Camera error:", err);
-        alert("Unable to access camera.");
-        closeScannerModal();
+        alert("Camera permission denied or not supported. Please allow camera access in Chrome settings.");
+        stopScanner();
       });
     }
 
-    function closeScannerModal() {
-      if (html5QrcodeScanner) {
+    function stopScanner() {
+      if (html5QrcodeScanner && isCameraActive) {
         html5QrcodeScanner.stop().then(() => {
           html5QrcodeScanner.clear();
-          html5QrcodeScanner = null;
-        }).catch(err => console.log(err));
+          isCameraActive = false;
+          document.getElementById('scannerWrapper').style.display = 'none';
+        }).catch(err => {
+          console.log(err);
+          isCameraActive = false;
+          document.getElementById('scannerWrapper').style.display = 'none';
+        });
+      } else {
+        document.getElementById('scannerWrapper').style.display = 'none';
       }
       isTorchOn = false;
       document.getElementById('torchBtn').innerText = "🔦 Flash On";
       document.getElementById('torchBtn').style.display = 'none';
-      document.getElementById('scannerModal').style.display = 'none';
     }
 
     function toggleTorch() {
@@ -284,7 +284,6 @@
       let sloc = document.getElementById('slocSelect').value;
       let cleanCode = String(searchCode).trim();
       
-      // முன்னால் உள்ள ஜீரோக்களை நீக்கிய வடிவம் (எ.கா: 0978... -> 978...)
       let codeWithoutLeadingZeros = cleanCode.replace(/^0+/, '');
 
       let foundKey = Object.keys(eanMap).find(key => {
@@ -294,7 +293,6 @@
         let articleVal = String(eanMap[key].article || '').trim();
         let articleWithoutLeadingZeros = articleVal.replace(/^0+/, '');
 
-        // 1. நேரடி மேட்ச் அல்லது 2. ஜீரோ இல்லாத மேட்ச்
         return cleanKey === cleanCode || 
                keyWithoutLeadingZeros === codeWithoutLeadingZeros ||
                articleVal === cleanCode ||
