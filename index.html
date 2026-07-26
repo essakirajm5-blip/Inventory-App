@@ -105,7 +105,6 @@
   </div>
 
   <script>
-    // ⚠️ PASTE YOUR DEPLOYED WEB APP URL INSIDE QUOTES BELOW
     const SCRIPT_URL = "https://script.google.com/macros/s/AKfycby51wXsL_DOrbXTpMD0GWrRW-XpAbETSud8llZSUOZ94AsXk-6hmlqAvv4inzYdLI-B/exec";
     
     let eanMap = {};
@@ -201,22 +200,26 @@
     }
 
     function onLiveInput(inputValue) {
-      if(!inputValue) return;
-      let searchCode = inputValue;
-      if(inputValue.includes("(")) {
+      if (!inputValue) return;
+
+      // Datalist-ல் இருந்து முழுமையாக தேர்வு செய்திருந்தால் மட்டுமே தேடும்
+      if (inputValue.includes("(") && inputValue.includes(")")) {
         let parts = inputValue.split("(");
-        searchCode = parts[parts.length - 1].replace(")", "").trim();
-      } else if(inputValue.includes("-")) {
-        searchCode = inputValue.split("-")[0].trim();
+        let searchCode = parts[parts.length - 1].replace(")", "").trim();
+        processCodeLookup(searchCode);
       }
-      processCodeLookup(searchCode);
     }
 
     function processCodeLookup(searchCode) {
       let storeCode = document.getElementById('storeCode').value.trim();
       let sloc = document.getElementById('slocSelect').value;
+      let cleanCode = String(searchCode).trim();
 
-      let foundKey = Object.keys(eanMap).find(key => key === searchCode || eanMap[key].article === searchCode);
+      // EAN அல்லது Article ID இரண்டிடமும் சரியாக ஒப்பிடுதல்
+      let foundKey = Object.keys(eanMap).find(key => 
+        String(key).trim() === cleanCode || 
+        String(eanMap[key].article).trim() === cleanCode
+      );
 
       if (foundKey) {
         let item = eanMap[foundKey];
@@ -247,7 +250,7 @@
 
         document.getElementById('resultCard').style.display = 'block';
       } else {
-        alert("Article/Barcode not found in Master Data: " + searchCode);
+        alert("Article/Barcode not found in Master Data: " + cleanCode);
       }
     }
 
