@@ -230,8 +230,7 @@
       loadMasterData();
     };
 
-    function loadStoredHistory() {
-      let empName = document.getElementById('empName').value.trim();
+    function loadStoredHistory(empName) {
       if (!empName) return;
 
       let todayDateStr = new Date().toLocaleDateString();
@@ -239,8 +238,12 @@
       let storedData = localStorage.getItem(storageKey);
 
       if (storedData) {
-        let parsedData = JSON.parse(storedData);
-        employeeTodayScans = parsedData.filter(item => item.rawDate === todayDateStr);
+        try {
+          let parsedData = JSON.parse(storedData);
+          employeeTodayScans = parsedData.filter(item => item.rawDate === todayDateStr);
+        } catch (e) {
+          employeeTodayScans = [];
+        }
       } else {
         employeeTodayScans = [];
       }
@@ -255,6 +258,7 @@
 
     function loadMasterData() {
       let statusDiv = document.getElementById('syncStatus');
+      if (!statusDiv) return;
       statusDiv.className = "status-loading";
       statusDiv.innerText = "⏳ Connecting to Google Sheets Master Data...";
 
@@ -266,19 +270,20 @@
           previousScans = data.previousScans || {};
 
           let datalist = document.getElementById('articleList');
-          datalist.innerHTML = "";
-          
-          let itemCount = 0;
-          for (let key in eanMap) {
-            let item = eanMap[key];
-            let option = document.createElement('option');
-            option.value = item.article + " - " + item.description + " (" + key + ")";
-            datalist.appendChild(option);
-            itemCount++;
+          if (datalist) {
+            datalist.innerHTML = "";
+            let itemCount = 0;
+            for (let key in eanMap) {
+              let item = eanMap[key];
+              let option = document.createElement('option');
+              option.value = item.article + " - " + item.description + " (" + key + ")";
+              datalist.appendChild(option);
+              itemCount++;
+            }
           }
 
           statusDiv.className = "status-success";
-          statusDiv.innerText = "✅ System Ready! (" + itemCount + " Articles Loaded)";
+          statusDiv.innerText = "✅ System Ready!";
         })
         .catch(err => {
           console.error(err);
@@ -288,7 +293,7 @@
     }
 
     function goToScanPage() {
-      initAudio(); // Initialize audio context on button click
+      initAudio(); 
       let storeCode = document.getElementById('storeCode').value.trim();
       let empName = document.getElementById('empName').value.trim();
       let sloc = document.getElementById('slocSelect').value;
@@ -299,23 +304,29 @@
         return;
       }
 
-      loadStoredHistory();
+      loadStoredHistory(empName);
 
-      document.getElementById('headerInfo').innerText = storeCode + " | " + empName + " | " + lhpBay;
-      document.getElementById('page1').classList.remove('active-page');
-      document.getElementById('page2').classList.add('active-page');
+      let headerInfo = document.getElementById('headerInfo');
+      let page1 = document.getElementById('page1');
+      let page2 = document.getElementById('page2');
+
+      if (headerInfo) headerInfo.innerText = storeCode + " | " + empName + " | " + lhpBay;
+      if (page1) page1.classList.remove('active-page');
+      if (page2) page2.classList.add('active-page');
 
       renderEmpHistory();
     }
 
     function goToSetupPage() {
-      document.getElementById('page2').classList.remove('active-page');
-      document.getElementById('page1').classList.add('active-page');
+      let page1 = document.getElementById('page1');
+      let page2 = document.getElementById('page2');
+      if (page2) page2.classList.remove('active-page');
+      if (page1) page1.classList.add('active-page');
       stopScanner();
     }
 
     function toggleScanner() {
-      initAudio(); // Initialize audio context on camera button click
+      initAudio(); 
       if (isCameraActive) {
         stopScanner();
       } else {
@@ -324,7 +335,8 @@
     }
 
     function startScanner() {
-      document.getElementById('scannerWrapper').style.display = 'block';
+      let wrapper = document.getElementById('scannerWrapper');
+      if (wrapper) wrapper.style.display = 'block';
       isCameraActive = true;
 
       if (!html5QrcodeScanner) {
@@ -357,7 +369,8 @@
         try {
           const track = html5QrcodeScanner.getRunningTrackCapabilities();
           if (track && track.torch) {
-            document.getElementById('torchBtn').style.display = 'inline-block';
+            let torchBtn = document.getElementById('torchBtn');
+            if (torchBtn) torchBtn.style.display = 'inline-block';
           }
         } catch(e) {}
       }).catch(err => {
@@ -371,17 +384,23 @@
         html5QrcodeScanner.stop().then(() => {
           html5QrcodeScanner.clear();
           isCameraActive = false;
-          document.getElementById('scannerWrapper').style.display = 'none';
+          let wrapper = document.getElementById('scannerWrapper');
+          if (wrapper) wrapper.style.display = 'none';
         }).catch(err => {
           isCameraActive = false;
-          document.getElementById('scannerWrapper').style.display = 'none';
+          let wrapper = document.getElementById('scannerWrapper');
+          if (wrapper) wrapper.style.display = 'none';
         });
       } else {
-        document.getElementById('scannerWrapper').style.display = 'none';
+        let wrapper = document.getElementById('scannerWrapper');
+        if (wrapper) wrapper.style.display = 'none';
       }
       isTorchOn = false;
-      document.getElementById('torchBtn').innerText = "🔦 Flash On";
-      document.getElementById('torchBtn').style.display = 'none';
+      let torchBtn = document.getElementById('torchBtn');
+      if (torchBtn) {
+        torchBtn.innerText = "🔦 Flash On";
+        torchBtn.style.display = 'none';
+      }
     }
 
     function toggleTorch() {
@@ -390,7 +409,8 @@
       html5QrcodeScanner.applyVideoConstraints({
         advanced: [{ torch: isTorchOn }]
       }).then(() => {
-        document.getElementById('torchBtn').innerText = isTorchOn ? "🔦 Flash Off" : "🔦 Flash On";
+        let torchBtn = document.getElementById('torchBtn');
+        if (torchBtn) torchBtn.innerText = isTorchOn ? "🔦 Flash Off" : "🔦 Flash On";
       });
     }
 
@@ -485,7 +505,8 @@
         physicalQty: currentInputQty
       };
 
-      document.getElementById('msg').innerText = "Saving entry...";
+      let msgElem = document.getElementById('msg');
+      if (msgElem) msgElem.innerText = "Saving entry...";
 
       fetch(SCRIPT_URL, {
         method: "POST",
@@ -494,7 +515,7 @@
         body: JSON.stringify(payload)
       })
       .then(() => {
-        document.getElementById('msg').innerText = "✅ Audit Entry Successfully Saved!";
+        if (msgElem) msgElem.innerText = "✅ Audit Entry Successfully Saved!";
         
         let prevKey = storeCode + "_" + currentItem.article;
         previousScans[prevKey] = (previousScans[prevKey] || 0) + currentInputQty;
@@ -502,19 +523,4 @@
         employeeTodayScans.unshift({
           rawDate: rawDateStr,
           dateTime: displayDateTime,
-          family: currentItem.family,
-          article: currentItem.article,
-          ean: currentItem.scannedEAN,
-          description: currentItem.description,
-          sloc: sloc,
-          qty: currentInputQty
-        });
-
-        saveToLocalStorage();
-        renderEmpHistory();
-
-        document.getElementById('resultCard').style.display = 'none';
-        document.getElementById('manualInput').value = "";
-        document.getElementById('physicalQty').value = "1";
-        
-        setTimeout(() => { document.getElementById('msg').inner
+          family: currentItem.fam
