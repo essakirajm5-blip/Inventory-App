@@ -30,14 +30,30 @@
     .status-success { background: #d4edda; color: #155724; }
     .status-error { background: #f8d7da; color: #721c24; }
 
-    /* Search Bar */
+    /* Search Bar & Custom Dropdown */
     .search-container { position: relative; width: 100%; margin-top: 5px; }
     .search-container input { width: 100%; padding-right: 55px; border: 2px solid #1a73e8; }
     .scan-icon-btn { 
-      position: absolute; right: 4px; top: 50%; transform: translateY(-50%); 
+      position: absolute; right: 4px; top: 6px; 
       background: #1a73e8; color: white; border: none; padding: 8px 12px; 
       border-radius: 6px; cursor: pointer; font-size: 16px; width: auto; margin: 0;
     }
+
+    /* Custom Auto-complete Search Results List */
+    .dropdown-results {
+      position: absolute; top: 100%; left: 0; right: 0;
+      background: white; border: 1px solid #1a73e8; border-radius: 0 0 8px 8px;
+      max-height: 220px; overflow-y: auto; z-index: 9999;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.15); display: none;
+    }
+    .dropdown-item {
+      padding: 10px 12px; border-bottom: 1px solid #eee; cursor: pointer; font-size: 13px;
+    }
+    .dropdown-item:hover, .dropdown-item:active {
+      background-color: #e8f0fe;
+    }
+    .dropdown-item strong { color: #1a73e8; display: block; font-size: 14px; }
+    .dropdown-item span { color: #666; font-size: 11px; }
 
     /* Camera Area */
     #scannerWrapper { display: none; margin-top: 15px; text-align: center; background: #000; padding: 10px; border-radius: 10px; position: relative; }
@@ -124,10 +140,10 @@
 
       <label>Scan Barcode or Search Article / Brand:</label>
       <div class="search-container">
-        <input type="text" id="manualInput" list="articleList" placeholder="Type Brand/Model (e.g. Samsung A52) or click 📷" oninput="onLiveInput(this.value)">
+        <input type="text" id="manualInput" placeholder="Type Brand/Model (e.g. Samsung) or click 📷" oninput="filterSearchResults(this.value)" autocomplete="off">
         <button type="button" class="scan-icon-btn" onclick="toggleScanner()" title="Scan Barcode">📷</button>
+        <div id="searchResults" class="dropdown-results"></div>
       </div>
-      <datalist id="articleList"></datalist>
 
       <!-- Camera Overlay -->
       <div id="scannerWrapper">
@@ -238,6 +254,13 @@
 
     window.onload = function() {
       loadMasterData();
+
+      // Close dropdown when clicking outside
+      document.addEventListener("click", function (e) {
+        if (!e.target.closest(".search-container")) {
+          document.getElementById("searchResults").style.display = "none";
+        }
+      });
     };
 
     function loadStoredHistory(empName) {
@@ -279,21 +302,6 @@
           stockMap = data.stockMap || {};
           previousScans = data.previousScans || {};
 
-          let datalist = document.getElementById('articleList');
-          if (datalist) {
-            datalist.innerHTML = "";
-            for (let key in eanMap) {
-              let item = eanMap[key];
-              let option = document.createElement('option');
-              // Format: Brand + Description + Article + Barcode (以便 match ஆக)
-              let brandName = item.brand || "";
-              let desc = item.description || "";
-              let artId = item.article || "";
-              option.value = brandName + " " + desc + " - Art: " + artId + " (" + key + ")";
-              datalist.appendChild(option);
-            }
-          }
-
           statusDiv.className = "status-success";
           statusDiv.innerText = "✅ Master Data Ready!";
         })
@@ -302,6 +310,58 @@
           statusDiv.className = "status-error";
           statusDiv.innerText = "❌ Master Data Sync Failed!";
         });
+    }
+
+    function filterSearchResults(query) {
+      let resDiv = document.getElementById("searchResults");
+      let cleanQuery = query.trim().toLowerCase();
+
+      if (!cleanQuery || cleanQuery.length < 2) {
+        resDiv.style.display = "none";
+        resDiv.innerHTML = "";
+        return;
+      }
+
+      let matches = [];
+      for (let eanKey in eanMap) {
+        let item = eanMap[eanKey];
+        let brand = String(item.brand || '').toLowerCase();
+        let desc = String(item.description || '').toLowerCase();
+        let article = String(item.article || '').toLowerCase();
+        let ean = String(eanKey).toLowerCase();
+
+        // Search in Brand, Description, Article ID or Barcode
+        if (brand.includes(cleanQuery) || desc.includes(cleanQuery) || article.includes(cleanQuery) || ean.includes(cleanQuery)) {
+          matches.push({ eanKey: eanKey, item: item });
+        }
+
+        if (matches.length >= 15) break; // Limit top 15 results for speed
+      }
+
+      if (matches.length === 0) {
+        resDiv.style.display = "none";
+        return;
+      }
+
+      let html = "";
+      matches.forEach(m => {
+        let brandStr = m.item.brand ? m.item.brand + " - " : "";
+        html += `
+          <div class="dropdown-item" onclick="selectSearchItem('${m.eanKey}')">
+            <strong>${brandStr}${m.item.description}</strong>
+            <span>Art: ${m.item.article} | EAN: ${m.eanKey}</span>
+          </div>
+        `;
+      });
+
+      resDiv.innerHTML = html;
+      resDiv.style.display = "block";
+    }
+
+    function selectSearchItem(selectedEAN) {
+      document.getElementById("searchResults").style.display = "none";
+      playBeepSound();
+      processCodeLookup(selectedEAN);
     }
 
     function goToScanPage() {
@@ -434,18 +494,6 @@
         let torchBtn = document.getElementById('torchBtn');
         if (torchBtn) torchBtn.innerText = isTorchOn ? "🔦 Flash Off" : "🔦 Flash On";
       });
-    }
-
-    function onLiveInput(inputValue) {
-      if (!inputValue) return;
-      
-      // ஒருவேளை பயனர் டிராப் டவுனில் இருந்து முழு ஆப்ஷனையும் தேர்ந்தெடுத்திருந்தால் அல்லது பிராக்கெட்டுக்குள் கோட் இருந்தால்
-      if (inputValue.includes("(") && inputValue.includes(")")) {
-        let parts = inputValue.split("(");
-        let searchCode = parts[parts.length - 1].replace(")", "").trim();
-        playBeepSound();
-        processCodeLookup(searchCode);
-      }
     }
 
     function processCodeLookup(searchCode) {
