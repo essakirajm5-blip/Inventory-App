@@ -203,19 +203,15 @@
       closeScannerModal();
     }
 
-    // Ultra-Fast Small Barcode Scanner Engine
     function openScannerModal() {
       document.getElementById('scannerModal').style.display = 'flex';
       
       html5QrcodeScanner = new Html5Qrcode("modalReader");
       
-      // சின்னஞ்சிறிய பார்கோடுகளை வேகமாகப் படிக்க பிரத்யேக செட்டிங்ஸ்
       const config = { 
-        fps: 30, // வேகமான போக்கஸிற்காக 30 FPS
-        qrbox: { width: 280, height: 120 }, // சின்ன பார்கோடுகளுக்கு ஏற்ற சிறிய விண்டோ
-        experimentalFeatures: { 
-          useBarCodeDetectorIfSupported: true // மொபைலின் சொந்த ஹார்டுவேர் பார்கோடு ஸ்கேனரைப் பயன்படுத்துதல்
-        },
+        fps: 30, 
+        qrbox: { width: 280, height: 120 },
+        experimentalFeatures: { useBarCodeDetectorIfSupported: true },
         formatsToSupport: [ 
           Html5QrcodeSupportedFormats.EAN_13,
           Html5QrcodeSupportedFormats.EAN_8,
@@ -225,10 +221,7 @@
         ]
       };
 
-      const cameraConfig = {
-        facingMode: "environment",
-        focusMode: "continuous"
-      };
+      const cameraConfig = { facingMode: "environment", focusMode: "continuous" };
 
       html5QrcodeScanner.start(
         cameraConfig,
@@ -285,15 +278,28 @@
       }
     }
 
+    // Leading Zero (0) Ignored Code Search Function
     function processCodeLookup(searchCode) {
       let storeCode = document.getElementById('storeCode').value.trim();
       let sloc = document.getElementById('slocSelect').value;
       let cleanCode = String(searchCode).trim();
+      
+      // முன்னால் உள்ள ஜீரோக்களை நீக்கிய வடிவம் (எ.கா: 0978... -> 978...)
+      let codeWithoutLeadingZeros = cleanCode.replace(/^0+/, '');
 
-      let foundKey = Object.keys(eanMap).find(key => 
-        String(key).trim() === cleanCode || 
-        String(eanMap[key].article).trim() === cleanCode
-      );
+      let foundKey = Object.keys(eanMap).find(key => {
+        let cleanKey = String(key).trim();
+        let keyWithoutLeadingZeros = cleanKey.replace(/^0+/, '');
+        
+        let articleVal = String(eanMap[key].article || '').trim();
+        let articleWithoutLeadingZeros = articleVal.replace(/^0+/, '');
+
+        // 1. நேரடி மேட்ச் அல்லது 2. ஜீரோ இல்லாத மேட்ச்
+        return cleanKey === cleanCode || 
+               keyWithoutLeadingZeros === codeWithoutLeadingZeros ||
+               articleVal === cleanCode ||
+               articleWithoutLeadingZeros === codeWithoutLeadingZeros;
+      });
 
       if (foundKey) {
         let item = eanMap[foundKey];
@@ -345,6 +351,7 @@
         family: currentItem.family,
         classVal: currentItem.classVal,
         mcCode: currentItem.mcCode,
+        brick: currentItem.brick,
         brand: currentItem.brand,
         systemStock: currentItem.systemStock,
         physicalQty: currentInputQty
