@@ -32,32 +32,53 @@
       border-radius: 6px; cursor: pointer; font-size: 16px; width: auto; margin: 0;
     }
 
-    /* Inline Camera Container with Laser Focus */
+    /* Inline Camera Container */
     #scannerWrapper { display: none; margin-top: 15px; text-align: center; background: #000; padding: 10px; border-radius: 8px; position: relative; }
-    #reader { width: 100%; min-height: 250px; background: #000; }
     .cam-controls { display: flex; justify-content: space-between; margin-bottom: 8px; }
     .cam-controls button { width: 48%; padding: 8px; font-size: 13px; }
 
-    /* Custom Laser Line Animation */
-    #html5-qrcode-scan-region {
-      position: relative !important;
+    /* Camera Viewport and Scan Box Container */
+    .video-container {
+      position: relative;
+      width: 100%;
+      max-width: 500px;
+      margin: 0 auto;
+      overflow: hidden;
+      border-radius: 6px;
     }
-    #html5-qrcode-scan-region::after {
-      content: "";
+
+    #reader { width: 100%; min-height: 250px; background: #000; }
+
+    /* Visual Scanner Box Overlay */
+    .scan-box-overlay {
       position: absolute;
-      top: 0;
-      left: 10%;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
       width: 80%;
-      height: 2px;
-      background: #ff0000;
-      box-shadow: 0 0 10px #ff0000, 0 0 5px #ff0000;
-      animation: laserScan 2s infinite ease-in-out;
+      height: 120px;
+      border: 2px solid #2ecc71;
+      box-shadow: 0 0 0 4000px rgba(0, 0, 0, 0.4);
+      border-radius: 8px;
+      pointer-events: none;
       z-index: 10;
     }
-    @keyframes laserScan {
-      0% { top: 15%; }
-      50% { top: 85%; }
-      100% { top: 15%; }
+
+    /* Red Moving Laser Line */
+    .laser-line {
+      position: absolute;
+      left: 0;
+      width: 100%;
+      height: 2px;
+      background: #ff0000;
+      box-shadow: 0 0 8px #ff0000, 0 0 3px #ff0000;
+      animation: laserMove 1.8s infinite ease-in-out;
+    }
+
+    @keyframes laserMove {
+      0% { top: 5%; }
+      50% { top: 90%; }
+      100% { top: 5%; }
     }
   </style>
 </head>
@@ -120,7 +141,14 @@
           <button id="torchBtn" onclick="toggleTorch()" style="background: #f39c12; display: none;">🔦 Flash On</button>
           <button onclick="stopScanner()" style="background: #e74c3c;">❌ Close Camera</button>
         </div>
-        <div id="reader"></div>
+        
+        <div class="video-container">
+          <div id="reader"></div>
+          <!-- Custom Visual Overlay with Laser -->
+          <div class="scan-box-overlay">
+            <div class="laser-line"></div>
+          </div>
+        </div>
       </div>
 
       <!-- Result Card -->
@@ -233,10 +261,9 @@
         html5QrcodeScanner = new Html5Qrcode("reader");
       }
 
-      // பாக்ஸ் அளவை பார்கோடுகளுக்கு ஏற்றவாறு (அகலமாக) அமைத்தல்
       const config = { 
         fps: 25, 
-        qrbox: { width: 280, height: 140 }, // குறிப்பிட்ட பாக்ஸுக்குள் மட்டும் பார்கோடு தேடும்
+        qrbox: { width: 280, height: 120 },
         experimentalFeatures: { useBarCodeDetectorIfSupported: true },
         formatsToSupport: [ 
           Html5QrcodeSupportedFormats.EAN_13,
