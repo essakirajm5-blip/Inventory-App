@@ -23,7 +23,7 @@
     .status-success { background: #d4edda; color: #155724; }
     .status-error { background: #f8d7da; color: #721c24; }
 
-    /* Search Bar with Embedded Scan Icon (AppSheet Style) */
+    /* Search Bar with Integrated Scan Icon */
     .search-container { position: relative; width: 100%; margin-top: 5px; }
     .search-container input { width: 100%; padding-right: 48px; }
     .scan-icon-btn { 
@@ -91,7 +91,7 @@
       <!-- DATA SYNC STATUS INDICATOR -->
       <div id="syncStatus" class="status-loading">⏳ Connecting to Master Data...</div>
 
-      <!-- AppSheet Style Input Box with Integrated Camera Icon -->
+      <!-- Search Box with Integrated Camera Icon -->
       <label>Search Article ID / EAN / Name:</label>
       <div class="search-container">
         <input type="text" id="manualInput" list="articleList" placeholder="Type or click 📷 to scan..." oninput="onLiveInput(this.value)">
@@ -203,19 +203,35 @@
       closeScannerModal();
     }
 
-    // Full Screen Scanner Functions
+    // Ultra-Fast Small Barcode Scanner Engine
     function openScannerModal() {
       document.getElementById('scannerModal').style.display = 'flex';
       
       html5QrcodeScanner = new Html5Qrcode("modalReader");
+      
+      // சின்னஞ்சிறிய பார்கோடுகளை வேகமாகப் படிக்க பிரத்யேக செட்டிங்ஸ்
       const config = { 
-        fps: 15, 
-        qrbox: { width: 300, height: 150 },
-        experimentalFeatures: { useBarCodeDetectorIfSupported: true }
+        fps: 30, // வேகமான போக்கஸிற்காக 30 FPS
+        qrbox: { width: 280, height: 120 }, // சின்ன பார்கோடுகளுக்கு ஏற்ற சிறிய விண்டோ
+        experimentalFeatures: { 
+          useBarCodeDetectorIfSupported: true // மொபைலின் சொந்த ஹார்டுவேர் பார்கோடு ஸ்கேனரைப் பயன்படுத்துதல்
+        },
+        formatsToSupport: [ 
+          Html5QrcodeSupportedFormats.EAN_13,
+          Html5QrcodeSupportedFormats.EAN_8,
+          Html5QrcodeSupportedFormats.CODE_128,
+          Html5QrcodeSupportedFormats.UPC_A,
+          Html5QrcodeSupportedFormats.UPC_E
+        ]
+      };
+
+      const cameraConfig = {
+        facingMode: "environment",
+        focusMode: "continuous"
       };
 
       html5QrcodeScanner.start(
-        { facingMode: "environment" },
+        cameraConfig,
         config,
         (decodedText) => {
           closeScannerModal();
@@ -223,7 +239,6 @@
         },
         (errorMessage) => {}
       ).then(() => {
-        // Check if torch/flash is available
         try {
           const track = html5QrcodeScanner.getRunningTrackCapabilities();
           if (track && track.torch) {
@@ -330,7 +345,6 @@
         family: currentItem.family,
         classVal: currentItem.classVal,
         mcCode: currentItem.mcCode,
-        brick: currentItem.brick,
         brand: currentItem.brand,
         systemStock: currentItem.systemStock,
         physicalQty: currentInputQty
