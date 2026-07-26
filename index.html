@@ -187,51 +187,59 @@
     let isTorchOn = false;
     let isCameraActive = false;
 
-    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    let audioCtx = null;
+
+    function initAudio() {
+      if (!audioCtx) {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      }
+      if (audioCtx.state === 'suspended') {
+        audioCtx.resume();
+      }
+    }
 
     function playBeepSound() {
       try {
-        if (audioCtx.state === 'suspended') {
-          audioCtx.resume();
-        }
+        initAudio();
         const osc = audioCtx.createOscillator();
         const gain = audioCtx.createGain();
         
         osc.type = 'sine';
         osc.frequency.setValueAtTime(1800, audioCtx.currentTime);
-        gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
+        gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
         
         osc.connect(gain);
         gain.connect(audioCtx.destination);
         
         osc.start();
-        osc.stop(audioCtx.currentTime + 0.12);
+        osc.stop(audioCtx.currentTime + 0.15);
       } catch (e) {
         console.log("Audio Error:", e);
       }
 
       if ("vibrate" in navigator) {
-        navigator.vibrate(150);
+        try {
+          navigator.vibrate(200);
+        } catch (e) {
+          console.log("Vibrate Error:", e);
+        }
       }
     }
 
     window.onload = function() {
       loadMasterData();
-      loadStoredHistory();
     };
 
-    // Load and filter today's history from LocalStorage based on Employee Name & Today's Date
     function loadStoredHistory() {
       let empName = document.getElementById('empName').value.trim();
       if (!empName) return;
 
-      let todayDateStr = new Date().toLocaleDateString(); // Gets current date like "7/26/2026"
+      let todayDateStr = new Date().toLocaleDateString();
       let storageKey = "audit_scans_" + empName;
       let storedData = localStorage.getItem(storageKey);
 
       if (storedData) {
         let parsedData = JSON.parse(storedData);
-        // Keep only today's scans
         employeeTodayScans = parsedData.filter(item => item.rawDate === todayDateStr);
       } else {
         employeeTodayScans = [];
@@ -280,6 +288,7 @@
     }
 
     function goToScanPage() {
+      initAudio(); // Initialize audio context on button click
       let storeCode = document.getElementById('storeCode').value.trim();
       let empName = document.getElementById('empName').value.trim();
       let sloc = document.getElementById('slocSelect').value;
@@ -290,11 +299,6 @@
         return;
       }
 
-      if (audioCtx.state === 'suspended') {
-        audioCtx.resume();
-      }
-
-      // Load specific employee's history for today
       loadStoredHistory();
 
       document.getElementById('headerInfo').innerText = storeCode + " | " + empName + " | " + lhpBay;
@@ -311,6 +315,7 @@
     }
 
     function toggleScanner() {
+      initAudio(); // Initialize audio context on camera button click
       if (isCameraActive) {
         stopScanner();
       } else {
@@ -319,10 +324,6 @@
     }
 
     function startScanner() {
-      if (audioCtx.state === 'suspended') {
-        audioCtx.resume();
-      }
-
       document.getElementById('scannerWrapper').style.display = 'block';
       isCameraActive = true;
 
@@ -462,7 +463,7 @@
       let sloc = document.getElementById('slocSelect').value;
 
       let now = new Date();
-      let rawDateStr = now.toLocaleDateString(); // e.g., "7/26/2026" for filtering
+      let rawDateStr = now.toLocaleDateString();
       let timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
       let displayDateTime = rawDateStr + " " + timeStr;
 
@@ -498,7 +499,6 @@
         let prevKey = storeCode + "_" + currentItem.article;
         previousScans[prevKey] = (previousScans[prevKey] || 0) + currentInputQty;
 
-        // Add to array and save to LocalStorage
         employeeTodayScans.unshift({
           rawDate: rawDateStr,
           dateTime: displayDateTime,
@@ -514,4 +514,7 @@
         renderEmpHistory();
 
         document.getElementById('resultCard').style.display = 'none';
-        document.getElement
+        document.getElementById('manualInput').value = "";
+        document.getElementById('physicalQty').value = "1";
+        
+        setTimeout(() => { document.getElementById('msg').inner
