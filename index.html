@@ -181,21 +181,45 @@
       }
 
       html5QrcodeScanner = new Html5Qrcode("reader");
-      const config = { fps: 10, qrbox: { width: 250, height: 250 } };
+
+      // பார்கோடுக்கு ஏற்றவாறு நீளச் செவ்வக வடிவ ஸ்கேன் பாக்ஸ் (Width 300 x Height 150)
+      const config = { 
+        fps: 15, 
+        qrbox: { width: 300, height: 150 }, 
+        experimentalFeatures: {
+          useBarCodeDetectorIfSupported: true 
+        }
+      };
+
+      // கேமரா குவாலிட்டி மற்றும் ஆட்டோ-ஃபோகஸ் செட்டிங்ஸ்
+      const cameraConstraints = {
+        facingMode: "environment",
+        width: { min: 640, ideal: 1280, max: 1920 },
+        height: { min: 480, ideal: 720, max: 1080 },
+        focusMode: "continuous"
+      };
 
       html5QrcodeScanner.start(
-        { facingMode: "environment" }, 
+        cameraConstraints, 
         config, 
         (decodedText) => {
           processCodeLookup(decodedText);
           html5QrcodeScanner.stop().catch(err => console.log(err));
         },
         (errorMessage) => {
-          // Ignore scanning frame errors
+          // Frame scanning errors ignore
         }
       ).catch(err => {
         console.error("Camera error:", err);
-        alert("Camera access denied or error starting camera.");
+        // HD செட்டிங்ஸ் சில பழைய மொபைல்களில் சப்போர்ட் ஆகாவிட்டால் நார்மல் கேமராவை ஓபன் செய்யும் Fallback
+        html5QrcodeScanner.start(
+          { facingMode: "environment" },
+          config,
+          (decodedText) => {
+            processCodeLookup(decodedText);
+            html5QrcodeScanner.stop().catch(err => console.log(err));
+          }
+        );
       });
     }
 
