@@ -6,63 +6,78 @@
   <title>Store Inventory Audit System</title>
   <script src="https://unpkg.com/html5-qrcode"></script>
   <style>
-    body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 12px; background-color: #f0f2f5; }
-    .card { background: white; padding: 18px; border-radius: 10px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); margin-bottom: 12px; }
-    h3 { margin-top: 0; color: #1a73e8; text-align: center; }
-    label { font-weight: bold; margin-top: 10px; display: block; font-size: 14px; color: #333; }
-    select, input, button { width: 100%; padding: 12px; margin-top: 5px; border-radius: 6px; border: 1px solid #ccc; box-sizing: border-box; font-size: 15px; }
+    body { font-family: 'Segoe UI', Roboto, sans-serif; margin: 12px; background-color: #f4f6f9; color: #333; }
+    .card { background: white; padding: 18px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.08); margin-bottom: 15px; }
+    h3 { margin-top: 0; color: #1a73e8; text-align: center; font-size: 18px; }
+    label { font-weight: 600; margin-top: 12px; display: block; font-size: 13px; color: #444; }
+    select, input, button { width: 100%; padding: 12px; margin-top: 6px; border-radius: 8px; border: 1px solid #ccc; box-sizing: border-box; font-size: 15px; outline: none; }
     button { background-color: #1a73e8; color: white; border: none; font-weight: bold; cursor: pointer; transition: 0.2s; }
-    button:hover { background-color: #1557b0; }
-    .info-box { background: #e8f0fe; padding: 12px; border-radius: 8px; margin-top: 12px; font-size: 14px; border-left: 4px solid #1a73e8; }
-    .prev-stock-box { background: #fff3cd; color: #856404; padding: 10px; border-radius: 6px; margin-top: 10px; font-weight: bold; border: 1px solid #ffeeba; }
+    button:active { transform: scale(0.98); }
+    
     .page { display: none; }
     .active-page { display: block; }
-    
-    #syncStatus { text-align: center; font-weight: bold; padding: 8px; border-radius: 6px; margin-bottom: 10px; font-size: 13px; }
+
+    /* Header Bar on Page 2 */
+    .header-bar {
+      display: flex; justify-content: space-between; align-items: center;
+      background: #e8f0fe; padding: 10px 14px; border-radius: 8px; border-left: 5px solid #1a73e8; margin-bottom: 15px;
+    }
+    .header-info { font-size: 13px; font-weight: bold; color: #1a73e8; line-height: 1.4; }
+    .change-btn { width: auto; padding: 6px 12px; font-size: 11px; background: #5f6368; margin: 0; }
+
+    #syncStatus { text-align: center; font-weight: bold; padding: 8px; border-radius: 6px; margin-bottom: 12px; font-size: 12px; }
     .status-loading { background: #fff3cd; color: #856404; }
     .status-success { background: #d4edda; color: #155724; }
     .status-error { background: #f8d7da; color: #721c24; }
 
     /* Search Bar */
     .search-container { position: relative; width: 100%; margin-top: 5px; }
-    .search-container input { width: 100%; padding-right: 48px; }
+    .search-container input { width: 100%; padding-right: 55px; border: 2px solid #1a73e8; }
     .scan-icon-btn { 
-      position: absolute; right: 5px; top: 50%; transform: translateY(-50%); 
+      position: absolute; right: 4px; top: 50%; transform: translateY(-50%); 
       background: #1a73e8; color: white; border: none; padding: 8px 12px; 
       border-radius: 6px; cursor: pointer; font-size: 16px; width: auto; margin: 0;
     }
 
-    /* Camera Overlay */
-    #scannerWrapper { display: none; margin-top: 15px; text-align: center; background: #000; padding: 10px; border-radius: 8px; position: relative; }
+    /* Camera Area */
+    #scannerWrapper { display: none; margin-top: 15px; text-align: center; background: #000; padding: 10px; border-radius: 10px; position: relative; }
     .cam-controls { display: flex; justify-content: space-between; margin-bottom: 8px; }
-    .cam-controls button { width: 48%; padding: 8px; font-size: 13px; }
-    .camera-container { position: relative; width: 100%; min-height: 280px; background: #000; border-radius: 6px; overflow: hidden; }
+    .cam-controls button { width: 48%; padding: 8px; font-size: 12px; margin: 0; }
+    .camera-container { position: relative; width: 100%; min-height: 250px; background: #000; border-radius: 8px; overflow: hidden; }
     #reader { width: 100%; height: 100%; }
     .scan-target-box {
       position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
-      width: 80%; height: 120px; border: 3px solid #2ecc71; border-radius: 8px;
-      box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.45); z-index: 999; pointer-events: none;
+      width: 80%; height: 110px; border: 3px solid #2ecc71; border-radius: 8px;
+      box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.5); z-index: 999; pointer-events: none;
       display: flex; align-items: center;
     }
     .laser-line {
       width: 100%; height: 3px; background-color: #ff0000;
-      box-shadow: 0 0 10px #ff0000, 0 0 4px #ff0000;
+      box-shadow: 0 0 10px #ff0000;
       animation: scanAnimation 1.6s infinite ease-in-out;
     }
     @keyframes scanAnimation {
-      0% { transform: translateY(-50px); }
-      50% { transform: translateY(50px); }
-      100% { transform: translateY(-50px); }
+      0% { transform: translateY(-45px); }
+      50% { transform: translateY(45px); }
+      100% { transform: translateY(-45px); }
     }
 
-    /* Today's Employee History Table Styles */
-    .history-card { margin-top: 20px; background: white; padding: 15px; border-radius: 10px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
-    .table-container { overflow-x: auto; margin-top: 10px; max-height: 300px; }
-    table { width: 100%; border-collapse: collapse; font-size: 11px; }
-    th, td { border: 1px solid #ddd; padding: 6px; text-align: left; white-space: nowrap; }
-    th { background-color: #1a73e8; color: white; position: sticky; top: 0; }
-    tr:nth-child(even) { background-color: #f9f9f9; }
-    .badge-qty { background: #27ae60; color: white; padding: 2px 6px; border-radius: 4px; font-weight: bold; }
+    /* Scanned Article Details Box */
+    .info-box { background: #ffffff; padding: 14px; border-radius: 10px; margin-top: 15px; font-size: 13px; border: 1px solid #dcdfe4; box-shadow: 0 2px 6px rgba(0,0,0,0.05); }
+    .info-box p { margin: 6px 0; color: #555; }
+    .info-box strong { color: #111; }
+    .article-title { font-size: 15px; font-weight: bold; color: #1a73e8; border-bottom: 1px solid #eee; padding-bottom: 6px; margin-bottom: 8px; }
+
+    .prev-stock-box { background: #fff8e1; color: #b78103; padding: 10px; border-radius: 8px; margin-top: 10px; font-weight: bold; font-size: 13px; border: 1px solid #ffe082; text-align: center; }
+
+    /* Today's History Table */
+    .history-card { background: white; padding: 15px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.08); margin-top: 15px; }
+    .table-container { overflow-x: auto; margin-top: 10px; max-height: 280px; }
+    table { width: 100%; border-collapse: collapse; font-size: 12px; }
+    th, td { border: 1px solid #e0e0e0; padding: 8px; text-align: left; white-space: nowrap; }
+    th { background-color: #1a73e8; color: white; position: sticky; top: 0; font-weight: 600; }
+    tr:nth-child(even) { background-color: #f8f9fa; }
+    .badge-qty { background: #2e7d32; color: white; padding: 3px 8px; border-radius: 12px; font-weight: bold; font-size: 11px; }
   </style>
 </head>
 <body>
@@ -98,27 +113,27 @@
   <!-- PAGE 2: AUDIT ENTRY & HISTORY -->
   <div id="page2" class="page">
     <div class="card">
-      <div style="display:flex; justify-content:space-between; align-items:center;">
-        <span id="headerInfo" style="font-size:12px; color:#555; font-weight:bold;"></span>
-        <button onclick="goToSetupPage()" style="width:auto; padding:5px 10px; font-size:12px; background:#6c757d;">⚙️ Change Setup</button>
-      </div>
       
-      <h3>📷 Inventory Audit (Page 2/2)</h3>
+      <!-- Top Info Bar -->
+      <div class="header-bar">
+        <div class="header-info" id="headerInfo">STR101 | Admin | Bay-01</div>
+        <button class="change-btn" onclick="goToSetupPage()">⚙️ Change Setup</button>
+      </div>
       
       <div id="syncStatus" class="status-loading">⏳ Connecting to Master Data...</div>
 
-      <label>Search Article ID / EAN / Name:</label>
+      <label>Scan Barcode or Search Article:</label>
       <div class="search-container">
-        <input type="text" id="manualInput" list="articleList" placeholder="Type or click 📷 to scan..." oninput="onLiveInput(this.value)">
+        <input type="text" id="manualInput" list="articleList" placeholder="Type name / ID or click 📷" oninput="onLiveInput(this.value)">
         <button class="scan-icon-btn" onclick="toggleScanner()" title="Scan Barcode">📷</button>
       </div>
       <datalist id="articleList"></datalist>
 
-      <!-- Camera Area -->
+      <!-- Camera Overlay -->
       <div id="scannerWrapper">
         <div class="cam-controls">
           <button id="torchBtn" onclick="toggleTorch()" style="background: #f39c12; display: none;">🔦 Flash On</button>
-          <button onclick="stopScanner()" style="background: #e74c3c;">❌ Close Camera</button>
+          <button onclick="stopScanner()" style="background: #d32f2f;">❌ Close Camera</button>
         </div>
         <div class="camera-container">
           <div id="reader"></div>
@@ -128,25 +143,24 @@
         </div>
       </div>
 
-      <!-- Result Card -->
+      <!-- Scanned Item Result Card -->
       <div id="resultCard" class="info-box" style="display:none;">
+        <div class="article-title" id="resDesc">Article Name Here</div>
         <p><strong>Article ID:</strong> <span id="resArticle">-</span></p>
-        <p><strong>Description:</strong> <span id="resDesc">-</span></p>
-        <p><strong>EAN / Code:</strong> <span id="resEAN">-</span></p>
+        <p><strong>EAN / Barcode:</strong> <span id="resEAN">-</span></p>
         <p><strong>Brand / Category:</strong> <span id="resMeta">-</span></p>
 
         <div class="prev-stock-box">
-          📊 Total Quantity Scanned So Far (All Bays): 
-          <span id="resPrevTotal">0</span>
+          📊 Total Quantity Scanned So Far: <span id="resPrevTotal">0</span>
         </div>
 
-        <label style="margin-top:15px;">Physical Scanned Quantity:</label>
-        <input type="number" id="physicalQty" value="1" min="1">
+        <label style="margin-top:12px;">Enter Physical Scanned Quantity:</label>
+        <input type="number" id="physicalQty" value="1" min="1" style="border: 2px solid #2e7d32; text-align: center; font-weight: bold; font-size: 18px;">
 
-        <button onclick="saveData()" style="background-color: #27ae60; margin-top:15px;">💾 Save Audit Entry</button>
+        <button onclick="saveData()" style="background-color: #2e7d32; margin-top:12px;">💾 Save Audit Entry</button>
       </div>
 
-      <p id="msg" style="text-align:center; font-weight:bold; color:green; margin-top:10px;"></p>
+      <p id="msg" style="text-align:center; font-weight:bold; color:#2e7d32; margin-top:10px;"></p>
     </div>
 
     <!-- TODAY'S EMPLOYEE SCANNED LIST -->
@@ -158,13 +172,13 @@
         <table>
           <thead>
             <tr>
-              <th>Date</th>
+              <th>Time</th>
               <th>Family</th>
               <th>Article</th>
               <th>EAN</th>
               <th>Description</th>
               <th>SLoc</th>
-              <th>Count</th>
+              <th>Qty</th>
             </tr>
           </thead>
           <tbody id="historyTableBody">
@@ -218,11 +232,7 @@
       }
 
       if ("vibrate" in navigator) {
-        try {
-          navigator.vibrate(200);
-        } catch (e) {
-          console.log("Vibrate Error:", e);
-        }
+        try { navigator.vibrate(200); } catch (e) {}
       }
     }
 
@@ -260,7 +270,7 @@
       let statusDiv = document.getElementById('syncStatus');
       if (!statusDiv) return;
       statusDiv.className = "status-loading";
-      statusDiv.innerText = "⏳ Connecting to Google Sheets Master Data...";
+      statusDiv.innerText = "⏳ Connecting to Master Data...";
 
       fetch(SCRIPT_URL, { redirect: "follow" })
         .then(res => res.json())
@@ -283,7 +293,7 @@
           }
 
           statusDiv.className = "status-success";
-          statusDiv.innerText = "✅ System Ready!";
+          statusDiv.innerText = "✅ Master Data Ready!";
         })
         .catch(err => {
           console.error(err);
@@ -472,7 +482,7 @@
         document.getElementById('manualInput').value = foundKey;
         document.getElementById('resultCard').style.display = 'block';
       } else {
-        alert("Article/Barcode not found in Master Data: " + cleanCode);
+        alert("Article/Barcode not found: " + cleanCode);
       }
     }
 
@@ -485,7 +495,6 @@
       let now = new Date();
       let rawDateStr = now.toLocaleDateString();
       let timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-      let displayDateTime = rawDateStr + " " + timeStr;
 
       let payload = {
         storeCode: storeCode,
@@ -515,12 +524,66 @@
         body: JSON.stringify(payload)
       })
       .then(() => {
-        if (msgElem) msgElem.innerText = "✅ Audit Entry Successfully Saved!";
+        if (msgElem) msgElem.innerText = "✅ Saved Successfully!";
         
         let prevKey = storeCode + "_" + currentItem.article;
         previousScans[prevKey] = (previousScans[prevKey] || 0) + currentInputQty;
 
         employeeTodayScans.unshift({
           rawDate: rawDateStr,
-          dateTime: displayDateTime,
-          family: currentItem.fam
+          dateTime: timeStr,
+          family: currentItem.family,
+          article: currentItem.article,
+          ean: currentItem.scannedEAN,
+          description: currentItem.description,
+          sloc: sloc,
+          qty: currentInputQty
+        });
+
+        saveToLocalStorage();
+        renderEmpHistory();
+
+        document.getElementById('resultCard').style.display = 'none';
+        document.getElementById('manualInput').value = "";
+        document.getElementById('physicalQty').value = "1";
+        
+        setTimeout(() => { if (msgElem) msgElem.innerText = ""; }, 3000);
+      })
+      .catch(err => {
+        console.error(err);
+        if (msgElem) msgElem.innerText = "❌ Error saving entry!";
+      });
+    }
+
+    function renderEmpHistory() {
+      let tbody = document.getElementById('historyTableBody');
+      let countSpan = document.getElementById('empTodayCount');
+
+      if (countSpan) countSpan.innerText = employeeTodayScans.length;
+
+      if (!tbody) return;
+
+      if (employeeTodayScans.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; color:#888;">No scans recorded today.</td></tr>';
+        return;
+      }
+
+      let html = "";
+      employeeTodayScans.forEach(item => {
+        html += `
+          <tr>
+            <td>${item.dateTime}</td>
+            <td>${item.family}</td>
+            <td><strong>${item.article}</strong></td>
+            <td>${item.ean}</td>
+            <td>${item.description}</td>
+            <td>${item.sloc}</td>
+            <td><span class="badge-qty">${item.qty}</span></td>
+          </tr>
+        `;
+      });
+      tbody.innerHTML = html;
+    }
+  </script>
+</body>
+</html>
