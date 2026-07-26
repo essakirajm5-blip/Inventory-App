@@ -15,7 +15,6 @@
     button:hover { background-color: #1557b0; }
     .info-box { background: #e8f0fe; padding: 12px; border-radius: 8px; margin-top: 12px; font-size: 14px; border-left: 4px solid #1a73e8; }
     .prev-stock-box { background: #fff3cd; color: #856404; padding: 10px; border-radius: 6px; margin-top: 10px; font-weight: bold; border: 1px solid #ffeeba; }
-    .divider { text-align: center; font-weight: bold; margin: 15px 0; color: #777; }
     .page { display: none; }
     .active-page { display: block; }
     
@@ -23,6 +22,30 @@
     .status-loading { background: #fff3cd; color: #856404; }
     .status-success { background: #d4edda; color: #155724; }
     .status-error { background: #f8d7da; color: #721c24; }
+
+    /* Search Bar with Embedded Scan Icon (AppSheet Style) */
+    .search-container { position: relative; width: 100%; margin-top: 5px; }
+    .search-container input { width: 100%; padding-right: 48px; }
+    .scan-icon-btn { 
+      position: absolute; right: 5px; top: 50%; transform: translateY(-50%); 
+      background: #1a73e8; color: white; border: none; padding: 8px 12px; 
+      border-radius: 6px; cursor: pointer; font-size: 16px; width: auto; margin: 0;
+    }
+
+    /* Full Screen Overlay Modal for Camera Scanner */
+    #scannerModal {
+      display: none; position: fixed; z-index: 9999; left: 0; top: 0; 
+      width: 100%; height: 100%; background-color: rgba(0,0,0,0.95);
+      flex-direction: column; justify-content: center; align-items: center;
+    }
+    #scannerModal .scanner-header {
+      position: absolute; top: 20px; left: 0; width: 100%; display: flex; 
+      justify-content: space-around; z-index: 10000;
+    }
+    #scannerModal .scanner-header button {
+      width: auto; padding: 10px 20px; font-size: 14px; border-radius: 20px;
+    }
+    #modalReader { width: 100%; max-width: 500px; }
   </style>
 </head>
 <body>
@@ -55,7 +78,7 @@
     </div>
   </div>
 
-  <!-- PAGE 2: SCANNER & AUDIT -->
+  <!-- PAGE 2: AUDIT ENTRY -->
   <div id="page2" class="page">
     <div class="card">
       <div style="display:flex; justify-content:space-between; align-items:center;">
@@ -68,15 +91,12 @@
       <!-- DATA SYNC STATUS INDICATOR -->
       <div id="syncStatus" class="status-loading">⏳ Connecting to Master Data...</div>
 
-      <!-- Option 1: Scanner -->
-      <button onclick="startScanner()">📷 Turn On Camera Scanner</button>
-      <div id="reader" style="width:100%; margin-top:10px;"></div>
-
-      <div class="divider">─── OR (TYPE & SELECT) ───</div>
-
-      <!-- Option 2: Live Datalist Auto-Complete -->
+      <!-- AppSheet Style Input Box with Integrated Camera Icon -->
       <label>Search Article ID / EAN / Name:</label>
-      <input type="text" id="manualInput" list="articleList" placeholder="Start typing Article ID or EAN..." oninput="onLiveInput(this.value)">
+      <div class="search-container">
+        <input type="text" id="manualInput" list="articleList" placeholder="Type or click 📷 to scan..." oninput="onLiveInput(this.value)">
+        <button class="scan-icon-btn" onclick="openScannerModal()" title="Scan Barcode">📷</button>
+      </div>
       <datalist id="articleList">
         <!-- Live suggestions load here -->
       </datalist>
@@ -104,6 +124,15 @@
     </div>
   </div>
 
+  <!-- FULL SCREEN CAMERA SCANNER OVERLAY -->
+  <div id="scannerModal">
+    <div class="scanner-header">
+      <button id="torchBtn" onclick="toggleTorch()" style="background: #f39c12; display: none;">🔦 Flash On</button>
+      <button onclick="closeScannerModal()" style="background: #e74c3c;">❌ Close</button>
+    </div>
+    <div id="modalReader"></div>
+  </div>
+
   <script>
     const SCRIPT_URL = "https://script.google.com/macros/s/AKfycby51wXsL_DOrbXTpMD0GWrRW-XpAbETSud8llZSUOZ94AsXk-6hmlqAvv4inzYdLI-B/exec";
     
@@ -112,6 +141,7 @@
     let previousScans = {};
     let html5QrcodeScanner = null;
     let currentItem = {};
+    let isTorchOn = false;
 
     window.onload = function() {
       loadMasterData();
@@ -170,63 +200,69 @@
     function goToSetupPage() {
       document.getElementById('page2').classList.remove('active-page');
       document.getElementById('page1').classList.add('active-page');
-      if(html5QrcodeScanner) {
-        html5QrcodeScanner.stop().catch(err => console.log(err));
-      }
+      closeScannerModal();
     }
 
-    function startScanner() {
-      if (html5QrcodeScanner) {
-        html5QrcodeScanner.stop().catch(err => console.log(err));
-      }
-
-      html5QrcodeScanner = new Html5Qrcode("reader");
-
-      // பார்கோடுக்கு ஏற்றவாறு நீளச் செவ்வக வடிவ ஸ்கேன் பாக்ஸ் (Width 300 x Height 150)
+    // Full Screen Scanner Functions
+    function openScannerModal() {
+      document.getElementById('scannerModal').style.display = 'flex';
+      
+      html5QrcodeScanner = new Html5Qrcode("modalReader");
       const config = { 
         fps: 15, 
-        qrbox: { width: 300, height: 150 }, 
-        experimentalFeatures: {
-          useBarCodeDetectorIfSupported: true 
-        }
-      };
-
-      // கேமரா குவாலிட்டி மற்றும் ஆட்டோ-ஃபோகஸ் செட்டிங்ஸ்
-      const cameraConstraints = {
-        facingMode: "environment",
-        width: { min: 640, ideal: 1280, max: 1920 },
-        height: { min: 480, ideal: 720, max: 1080 },
-        focusMode: "continuous"
+        qrbox: { width: 300, height: 150 },
+        experimentalFeatures: { useBarCodeDetectorIfSupported: true }
       };
 
       html5QrcodeScanner.start(
-        cameraConstraints, 
-        config, 
+        { facingMode: "environment" },
+        config,
         (decodedText) => {
+          closeScannerModal();
           processCodeLookup(decodedText);
-          html5QrcodeScanner.stop().catch(err => console.log(err));
         },
-        (errorMessage) => {
-          // Frame scanning errors ignore
-        }
-      ).catch(err => {
-        console.error("Camera error:", err);
-        // HD செட்டிங்ஸ் சில பழைய மொபைல்களில் சப்போர்ட் ஆகாவிட்டால் நார்மல் கேமராவை ஓபன் செய்யும் Fallback
-        html5QrcodeScanner.start(
-          { facingMode: "environment" },
-          config,
-          (decodedText) => {
-            processCodeLookup(decodedText);
-            html5QrcodeScanner.stop().catch(err => console.log(err));
+        (errorMessage) => {}
+      ).then(() => {
+        // Check if torch/flash is available
+        try {
+          const track = html5QrcodeScanner.getRunningTrackCapabilities();
+          if (track && track.torch) {
+            document.getElementById('torchBtn').style.display = 'inline-block';
           }
-        );
+        } catch(e) {}
+      }).catch(err => {
+        console.error("Camera error:", err);
+        alert("Unable to access camera.");
+        closeScannerModal();
       });
+    }
+
+    function closeScannerModal() {
+      if (html5QrcodeScanner) {
+        html5QrcodeScanner.stop().then(() => {
+          html5QrcodeScanner.clear();
+          html5QrcodeScanner = null;
+        }).catch(err => console.log(err));
+      }
+      isTorchOn = false;
+      document.getElementById('torchBtn').innerText = "🔦 Flash On";
+      document.getElementById('torchBtn').style.display = 'none';
+      document.getElementById('scannerModal').style.display = 'none';
+    }
+
+    function toggleTorch() {
+      if (!html5QrcodeScanner) return;
+      isTorchOn = !isTorchOn;
+      html5QrcodeScanner.applyVideoConstraints({
+        advanced: [{ torch: isTorchOn }]
+      }).then(() => {
+        document.getElementById('torchBtn').innerText = isTorchOn ? "🔦 Flash Off" : "🔦 Flash On";
+      }).catch(err => console.log("Flash error:", err));
     }
 
     function onLiveInput(inputValue) {
       if (!inputValue) return;
 
-      // Datalist-ல் இருந்து முழுமையாக தேர்வு செய்திருந்தால் மட்டுமே தேடும்
       if (inputValue.includes("(") && inputValue.includes(")")) {
         let parts = inputValue.split("(");
         let searchCode = parts[parts.length - 1].replace(")", "").trim();
@@ -239,7 +275,6 @@
       let sloc = document.getElementById('slocSelect').value;
       let cleanCode = String(searchCode).trim();
 
-      // EAN அல்லது Article ID இரண்டிடமும் சரியாக ஒப்பிடுதல்
       let foundKey = Object.keys(eanMap).find(key => 
         String(key).trim() === cleanCode || 
         String(eanMap[key].article).trim() === cleanCode
@@ -272,6 +307,7 @@
           systemStock: sysStock
         };
 
+        document.getElementById('manualInput').value = foundKey;
         document.getElementById('resultCard').style.display = 'block';
       } else {
         alert("Article/Barcode not found in Master Data: " + cleanCode);
