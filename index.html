@@ -106,7 +106,7 @@
       <label>LHP / Bay Area:</label>
       <input type="text" id="lhpBay" placeholder="E.g., Bay-A12 or Rack-05">
 
-      <button onclick="goToScanPage()" style="margin-top:20px;">Start Audit ➡️</button>
+      <button type="button" onclick="goToScanPage()" style="margin-top:20px;">Start Audit ➡️</button>
     </div>
   </div>
 
@@ -117,7 +117,7 @@
       <!-- Top Info Bar -->
       <div class="header-bar">
         <div class="header-info" id="headerInfo">STR101 | Admin | Bay-01</div>
-        <button class="change-btn" onclick="goToSetupPage()">⚙️ Change Setup</button>
+        <button type="button" class="change-btn" onclick="goToSetupPage()">⚙️ Change Setup</button>
       </div>
       
       <div id="syncStatus" class="status-loading">⏳ Connecting to Master Data...</div>
@@ -125,15 +125,15 @@
       <label>Scan Barcode or Search Article:</label>
       <div class="search-container">
         <input type="text" id="manualInput" list="articleList" placeholder="Type name / ID or click 📷" oninput="onLiveInput(this.value)">
-        <button class="scan-icon-btn" onclick="toggleScanner()" title="Scan Barcode">📷</button>
+        <button type="button" class="scan-icon-btn" onclick="toggleScanner()" title="Scan Barcode">📷</button>
       </div>
       <datalist id="articleList"></datalist>
 
       <!-- Camera Overlay -->
       <div id="scannerWrapper">
         <div class="cam-controls">
-          <button id="torchBtn" onclick="toggleTorch()" style="background: #f39c12; display: none;">🔦 Flash On</button>
-          <button onclick="stopScanner()" style="background: #d32f2f;">❌ Close Camera</button>
+          <button type="button" id="torchBtn" onclick="toggleTorch()" style="background: #f39c12; display: none;">🔦 Flash On</button>
+          <button type="button" onclick="stopScanner()" style="background: #d32f2f;">❌ Close Camera</button>
         </div>
         <div class="camera-container">
           <div id="reader"></div>
@@ -157,7 +157,7 @@
         <label style="margin-top:12px;">Enter Physical Scanned Quantity:</label>
         <input type="number" id="physicalQty" value="1" min="1" style="border: 2px solid #2e7d32; text-align: center; font-weight: bold; font-size: 18px;">
 
-        <button onclick="saveData()" style="background-color: #2e7d32; margin-top:12px;">💾 Save Audit Entry</button>
+        <button type="button" onclick="saveData()" style="background-color: #2e7d32; margin-top:12px;">💾 Save Audit Entry</button>
       </div>
 
       <p id="msg" style="text-align:center; font-weight:bold; color:#2e7d32; margin-top:10px;"></p>
@@ -282,13 +282,11 @@
           let datalist = document.getElementById('articleList');
           if (datalist) {
             datalist.innerHTML = "";
-            let itemCount = 0;
             for (let key in eanMap) {
               let item = eanMap[key];
               let option = document.createElement('option');
               option.value = item.article + " - " + item.description + " (" + key + ")";
               datalist.appendChild(option);
-              itemCount++;
             }
           }
 
@@ -303,28 +301,38 @@
     }
 
     function goToScanPage() {
-      initAudio(); 
-      let storeCode = document.getElementById('storeCode').value.trim();
-      let empName = document.getElementById('empName').value.trim();
-      let sloc = document.getElementById('slocSelect').value;
-      let lhpBay = document.getElementById('lhpBay').value.trim();
+      try {
+        initAudio(); 
+        let storeCodeInput = document.getElementById('storeCode');
+        let empNameInput = document.getElementById('empName');
+        let slocSelect = document.getElementById('slocSelect');
+        let lhpBayInput = document.getElementById('lhpBay');
 
-      if (!storeCode || !empName || !sloc || !lhpBay) {
-        alert("Please fill in all details before proceeding!");
-        return;
+        let storeCode = storeCodeInput ? storeCodeInput.value.trim() : "";
+        let empName = empNameInput ? empNameInput.value.trim() : "";
+        let sloc = slocSelect ? slocSelect.value : "";
+        let lhpBay = lhpBayInput ? lhpBayInput.value.trim() : "";
+
+        if (!storeCode || !empName || !sloc || !lhpBay) {
+          alert("Please fill in all details (Store Code, Employee Name, SLoc, LHP/Bay) before proceeding!");
+          return;
+        }
+
+        loadStoredHistory(empName);
+
+        let headerInfo = document.getElementById('headerInfo');
+        let page1 = document.getElementById('page1');
+        let page2 = document.getElementById('page2');
+
+        if (headerInfo) headerInfo.innerText = storeCode + " | " + empName + " | " + lhpBay;
+        if (page1) page1.classList.remove('active-page');
+        if (page2) page2.classList.add('active-page');
+
+        renderEmpHistory();
+      } catch (e) {
+        console.error("Navigation Error:", e);
+        alert("Error switching page: " + e.message);
       }
-
-      loadStoredHistory(empName);
-
-      let headerInfo = document.getElementById('headerInfo');
-      let page1 = document.getElementById('page1');
-      let page2 = document.getElementById('page2');
-
-      if (headerInfo) headerInfo.innerText = storeCode + " | " + empName + " | " + lhpBay;
-      if (page1) page1.classList.remove('active-page');
-      if (page2) page2.classList.add('active-page');
-
-      renderEmpHistory();
     }
 
     function goToSetupPage() {
