@@ -32,53 +32,56 @@
       border-radius: 6px; cursor: pointer; font-size: 16px; width: auto; margin: 0;
     }
 
-    /* Inline Camera Container */
+    /* Inline Camera View Container */
     #scannerWrapper { display: none; margin-top: 15px; text-align: center; background: #000; padding: 10px; border-radius: 8px; position: relative; }
     .cam-controls { display: flex; justify-content: space-between; margin-bottom: 8px; }
     .cam-controls button { width: 48%; padding: 8px; font-size: 13px; }
 
-    /* Camera Viewport and Scan Box Container */
-    .video-container {
+    /* Camera Container Wrapper */
+    .camera-container {
       position: relative;
       width: 100%;
-      max-width: 500px;
-      margin: 0 auto;
-      overflow: hidden;
+      min-height: 280px;
+      background: #000;
       border-radius: 6px;
+      overflow: hidden;
     }
 
-    #reader { width: 100%; min-height: 250px; background: #000; }
+    #reader {
+      width: 100%;
+      height: 100%;
+    }
 
-    /* Visual Scanner Box Overlay */
-    .scan-box-overlay {
+    /* Forced Overlay Scan Target Box */
+    .scan-target-box {
       position: absolute;
       top: 50%;
       left: 50%;
       transform: translate(-50%, -50%);
       width: 80%;
       height: 120px;
-      border: 2px solid #2ecc71;
-      box-shadow: 0 0 0 4000px rgba(0, 0, 0, 0.4);
+      border: 3px solid #2ecc71;
       border-radius: 8px;
+      box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.45);
+      z-index: 999;
       pointer-events: none;
-      z-index: 10;
+      display: flex;
+      align-items: center;
     }
 
-    /* Red Moving Laser Line */
+    /* Moving Laser Bar */
     .laser-line {
-      position: absolute;
-      left: 0;
       width: 100%;
-      height: 2px;
-      background: #ff0000;
-      box-shadow: 0 0 8px #ff0000, 0 0 3px #ff0000;
-      animation: laserMove 1.8s infinite ease-in-out;
+      height: 3px;
+      background-color: #ff0000;
+      box-shadow: 0 0 10px #ff0000, 0 0 4px #ff0000;
+      animation: scanAnimation 1.6s infinite ease-in-out;
     }
 
-    @keyframes laserMove {
-      0% { top: 5%; }
-      50% { top: 90%; }
-      100% { top: 5%; }
+    @keyframes scanAnimation {
+      0% { transform: translateY(-50px); }
+      50% { transform: translateY(50px); }
+      100% { transform: translateY(-50px); }
     }
   </style>
 </head>
@@ -142,10 +145,10 @@
           <button onclick="stopScanner()" style="background: #e74c3c;">❌ Close Camera</button>
         </div>
         
-        <div class="video-container">
+        <div class="camera-container">
           <div id="reader"></div>
-          <!-- Custom Visual Overlay with Laser -->
-          <div class="scan-box-overlay">
+          <!-- Scanning Target Box & Laser Line Overlay -->
+          <div class="scan-target-box">
             <div class="laser-line"></div>
           </div>
         </div>
@@ -263,7 +266,7 @@
 
       const config = { 
         fps: 25, 
-        qrbox: { width: 280, height: 120 },
+        qrbox: { width: 260, height: 110 },
         experimentalFeatures: { useBarCodeDetectorIfSupported: true },
         formatsToSupport: [ 
           Html5QrcodeSupportedFormats.EAN_13,
