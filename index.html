@@ -23,7 +23,7 @@
     .status-success { background: #d4edda; color: #155724; }
     .status-error { background: #f8d7da; color: #721c24; }
 
-    /* Search Bar with Integrated Scan Icon */
+    /* Search Bar */
     .search-container { position: relative; width: 100%; margin-top: 5px; }
     .search-container input { width: 100%; padding-right: 48px; }
     .scan-icon-btn { 
@@ -32,62 +32,42 @@
       border-radius: 6px; cursor: pointer; font-size: 16px; width: auto; margin: 0;
     }
 
-    /* Inline Camera View Container */
+    /* Camera Overlay */
     #scannerWrapper { display: none; margin-top: 15px; text-align: center; background: #000; padding: 10px; border-radius: 8px; position: relative; }
     .cam-controls { display: flex; justify-content: space-between; margin-bottom: 8px; }
     .cam-controls button { width: 48%; padding: 8px; font-size: 13px; }
-
-    /* Camera Container Wrapper */
-    .camera-container {
-      position: relative;
-      width: 100%;
-      min-height: 280px;
-      background: #000;
-      border-radius: 6px;
-      overflow: hidden;
-    }
-
-    #reader {
-      width: 100%;
-      height: 100%;
-    }
-
-    /* Forced Overlay Scan Target Box */
+    .camera-container { position: relative; width: 100%; min-height: 280px; background: #000; border-radius: 6px; overflow: hidden; }
+    #reader { width: 100%; height: 100%; }
     .scan-target-box {
-      position: absolute;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      width: 80%;
-      height: 120px;
-      border: 3px solid #2ecc71;
-      border-radius: 8px;
-      box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.45);
-      z-index: 999;
-      pointer-events: none;
-      display: flex;
-      align-items: center;
+      position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+      width: 80%; height: 120px; border: 3px solid #2ecc71; border-radius: 8px;
+      box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.45); z-index: 999; pointer-events: none;
+      display: flex; align-items: center;
     }
-
-    /* Moving Laser Bar */
     .laser-line {
-      width: 100%;
-      height: 3px;
-      background-color: #ff0000;
+      width: 100%; height: 3px; background-color: #ff0000;
       box-shadow: 0 0 10px #ff0000, 0 0 4px #ff0000;
       animation: scanAnimation 1.6s infinite ease-in-out;
     }
-
     @keyframes scanAnimation {
       0% { transform: translateY(-50px); }
       50% { transform: translateY(50px); }
       100% { transform: translateY(-50px); }
     }
+
+    /* Today's Employee History Table Styles */
+    .history-card { margin-top: 20px; background: white; padding: 15px; border-radius: 10px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
+    .table-container { overflow-x: auto; margin-top: 10px; max-height: 300px; }
+    table { width: 100%; border-collapse: collapse; font-size: 12px; }
+    th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+    th { background-color: #1a73e8; color: white; position: sticky; top: 0; }
+    tr:nth-child(even) { background-color: #f9f9f9; }
+    .badge-qty { background: #27ae60; color: white; padding: 2px 6px; border-radius: 4px; font-weight: bold; }
   </style>
 </head>
 <body>
 
-  <!-- PAGE 1: USER & LOCATION SETUP -->
+  <!-- PAGE 1: SETUP -->
   <div id="page1" class="page active-page">
     <div class="card">
       <h3>🚀 Audit Setup (Page 1/2)</h3>
@@ -115,7 +95,7 @@
     </div>
   </div>
 
-  <!-- PAGE 2: AUDIT ENTRY -->
+  <!-- PAGE 2: AUDIT ENTRY & HISTORY -->
   <div id="page2" class="page">
     <div class="card">
       <div style="display:flex; justify-content:space-between; align-items:center;">
@@ -125,29 +105,23 @@
       
       <h3>📷 Inventory Audit (Page 2/2)</h3>
       
-      <!-- DATA SYNC STATUS INDICATOR -->
       <div id="syncStatus" class="status-loading">⏳ Connecting to Master Data...</div>
 
-      <!-- Search Box with Integrated Camera Icon -->
       <label>Search Article ID / EAN / Name:</label>
       <div class="search-container">
         <input type="text" id="manualInput" list="articleList" placeholder="Type or click 📷 to scan..." oninput="onLiveInput(this.value)">
         <button class="scan-icon-btn" onclick="toggleScanner()" title="Scan Barcode">📷</button>
       </div>
-      <datalist id="articleList">
-        <!-- Live suggestions load here -->
-      </datalist>
+      <datalist id="articleList"></datalist>
 
-      <!-- Inline Camera Scanner Area -->
+      <!-- Camera Area -->
       <div id="scannerWrapper">
         <div class="cam-controls">
           <button id="torchBtn" onclick="toggleTorch()" style="background: #f39c12; display: none;">🔦 Flash On</button>
           <button onclick="stopScanner()" style="background: #e74c3c;">❌ Close Camera</button>
         </div>
-        
         <div class="camera-container">
           <div id="reader"></div>
-          <!-- Scanning Target Box & Laser Line Overlay -->
           <div class="scan-target-box">
             <div class="laser-line"></div>
           </div>
@@ -161,19 +135,42 @@
         <p><strong>EAN / Code:</strong> <span id="resEAN">-</span></p>
         <p><strong>Brand / Category:</strong> <span id="resMeta">-</span></p>
 
-        <!-- Previous Scan Stock Reference -->
         <div class="prev-stock-box">
           📊 Total Quantity Scanned So Far (All Bays): 
           <span id="resPrevTotal">0</span>
         </div>
 
-        <label style="margin-top:15px;">Physical Scanned Quantity (For current location):</label>
+        <label style="margin-top:15px;">Physical Scanned Quantity:</label>
         <input type="number" id="physicalQty" value="1" min="1">
 
         <button onclick="saveData()" style="background-color: #27ae60; margin-top:15px;">💾 Save Audit Entry</button>
       </div>
 
       <p id="msg" style="text-align:center; font-weight:bold; color:green; margin-top:10px;"></p>
+    </div>
+
+    <!-- TODAY'S EMPLOYEE SCANNED LIST -->
+    <div class="history-card">
+      <h4 style="margin:0 0 10px 0; color:#1a73e8; display:flex; justify-content:space-between; align-items:center;">
+        <span>📋 My Scans Today (<span id="empTodayCount">0</span> Items)</span>
+      </h4>
+      <div class="table-container">
+        <table>
+          <thead>
+            <tr>
+              <th>Article ID</th>
+              <th>Description</th>
+              <th>EAN</th>
+              <th>Family</th>
+              <th>SLoc</th>
+              <th>Qty</th>
+            </tr>
+          </thead>
+          <tbody id="historyTableBody">
+            <tr><td colspan="6" style="text-align:center; color:#888;">No scans recorded today.</td></tr>
+          </tbody>
+        </table>
+      </div>
     </div>
   </div>
 
@@ -183,6 +180,7 @@
     let eanMap = {};
     let stockMap = {};
     let previousScans = {};
+    let employeeTodayScans = []; // இன்றைய ஊழியரின் ஸ்கேன்களை சேமிக்க
     let html5QrcodeScanner = null;
     let currentItem = {};
     let isTorchOn = false;
@@ -222,7 +220,7 @@
         .catch(err => {
           console.error(err);
           statusDiv.className = "status-error";
-          statusDiv.innerText = "❌ Master Data Sync Failed! Please check deployment settings.";
+          statusDiv.innerText = "❌ Master Data Sync Failed!";
         });
     }
 
@@ -240,6 +238,9 @@
       document.getElementById('headerInfo').innerText = storeCode + " | " + empName + " | " + lhpBay;
       document.getElementById('page1').classList.remove('active-page');
       document.getElementById('page2').classList.add('active-page');
+
+      // ஊழியரின் இன்றைய ஸ்கேன்களை மட்டும் ரெண்டர் செய்யவும்
+      renderEmpHistory();
     }
 
     function goToSetupPage() {
@@ -293,8 +294,7 @@
           }
         } catch(e) {}
       }).catch(err => {
-        console.error("Camera error:", err);
-        alert("Unable to access camera. Please allow Camera permissions in Chrome settings.");
+        alert("Unable to access camera. Check permissions.");
         stopScanner();
       });
     }
@@ -306,7 +306,6 @@
           isCameraActive = false;
           document.getElementById('scannerWrapper').style.display = 'none';
         }).catch(err => {
-          console.log(err);
           isCameraActive = false;
           document.getElementById('scannerWrapper').style.display = 'none';
         });
@@ -325,12 +324,11 @@
         advanced: [{ torch: isTorchOn }]
       }).then(() => {
         document.getElementById('torchBtn').innerText = isTorchOn ? "🔦 Flash Off" : "🔦 Flash On";
-      }).catch(err => console.log("Flash error:", err));
+      });
     }
 
     function onLiveInput(inputValue) {
       if (!inputValue) return;
-
       if (inputValue.includes("(") && inputValue.includes(")")) {
         let parts = inputValue.split("(");
         let searchCode = parts[parts.length - 1].replace(")", "").trim();
@@ -338,18 +336,15 @@
       }
     }
 
-    // Leading Zero (0) Ignored Code Search Function
     function processCodeLookup(searchCode) {
       let storeCode = document.getElementById('storeCode').value.trim();
       let sloc = document.getElementById('slocSelect').value;
       let cleanCode = String(searchCode).trim();
-      
       let codeWithoutLeadingZeros = cleanCode.replace(/^0+/, '');
 
       let foundKey = Object.keys(eanMap).find(key => {
         let cleanKey = String(key).trim();
         let keyWithoutLeadingZeros = cleanKey.replace(/^0+/, '');
-        
         let articleVal = String(eanMap[key].article || '').trim();
         let articleWithoutLeadingZeros = articleVal.replace(/^0+/, '');
 
@@ -378,7 +373,7 @@
           article: item.article,
           description: item.description,
           segment: item.segment,
-          family: item.family,
+          family: item.family || "N/A",
           classVal: item.classVal,
           mcCode: item.mcCode,
           brick: item.brick,
@@ -396,11 +391,13 @@
     function saveData() {
       let currentInputQty = Number(document.getElementById('physicalQty').value) || 0;
       let storeCode = document.getElementById('storeCode').value.trim();
+      let empName = document.getElementById('empName').value.trim();
+      let sloc = document.getElementById('slocSelect').value;
 
       let payload = {
         storeCode: storeCode,
-        empName: document.getElementById('empName').value.trim(),
-        sloc: document.getElementById('slocSelect').value,
+        empName: empName,
+        sloc: sloc,
         lhpBay: document.getElementById('lhpBay').value.trim(),
         scannedEAN: currentItem.scannedEAN,
         article: currentItem.article,
@@ -426,9 +423,23 @@
       .then(() => {
         document.getElementById('msg').innerText = "✅ Audit Entry Successfully Saved!";
         
+        // 1. Update Global Total
         let prevKey = storeCode + "_" + currentItem.article;
         previousScans[prevKey] = (previousScans[prevKey] || 0) + currentInputQty;
 
+        // 2. Add to Employee's Local Today History
+        employeeTodayScans.unshift({
+          article: currentItem.article,
+          description: currentItem.description,
+          ean: currentItem.scannedEAN,
+          family: currentItem.family,
+          sloc: sloc,
+          qty: currentInputQty
+        });
+
+        renderEmpHistory();
+
+        // UI Reset
         document.getElementById('resultCard').style.display = 'none';
         document.getElementById('manualInput').value = "";
         document.getElementById('physicalQty').value = "1";
@@ -439,6 +450,34 @@
         console.error(err);
         document.getElementById('msg').innerText = "❌ Error saving entry!";
       });
+    }
+
+    // Render Employee's Today History Table
+    function renderEmpHistory() {
+      let tbody = document.getElementById('historyTableBody');
+      let countSpan = document.getElementById('empTodayCount');
+
+      countSpan.innerText = employeeTodayScans.length;
+
+      if (employeeTodayScans.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; color:#888;">No scans recorded today.</td></tr>';
+        return;
+      }
+
+      let html = "";
+      employeeTodayScans.forEach(item => {
+        html += `
+          <tr>
+            <td><strong>${item.article}</strong></td>
+            <td>${item.description}</td>
+            <td>${item.ean}</td>
+            <td>${item.family}</td>
+            <td>${item.sloc}</td>
+            <td><span class="badge-qty">${item.qty}</span></td>
+          </tr>
+        `;
+      });
+      tbody.innerHTML = html;
     }
   </script>
 </body>
